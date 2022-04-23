@@ -7,13 +7,20 @@
 
 * Enum can't reflect if the enum is a forward declaration.
 
+* For enum-flags add `is_flags` to specialization `enum_range` for necessary enum type. Specialization of `enum_range` must be injected in `namespace magic_enum::customize`.
+  ```cpp
+  enum class Directions { Up = 1 << 1, Down = 1 << 2, Right = 1 << 3, Left = 1 << 4 };
+  template <>
+  struct magic_enum::customize::enum_range<Directions> {
+    static constexpr bool is_flags = true;
+  };
+  ```
+
 * Enum value must be in range `[MAGIC_ENUM_RANGE_MIN, MAGIC_ENUM_RANGE_MAX]`.
 
   * By default `MAGIC_ENUM_RANGE_MIN = -128`, `MAGIC_ENUM_RANGE_MAX = 128`.
 
-  * `MAGIC_ENUM_RANGE_MIN` must be less or equals than `0` and must be greater than `INT16_MIN`.
-
-  * `MAGIC_ENUM_RANGE_MAX` must be greater than `0` and must be less than `INT16_MAX`.
+  * `MAGIC_ENUM_RANGE = (MAGIC_ENUM_RANGE_MAX - MAGIC_ENUM_RANGE_MIN)` must be less than `UINT16_MIN`.
 
   * If need another range for all enum types by default, redefine the macro `MAGIC_ENUM_RANGE_MIN` and `MAGIC_ENUM_RANGE_MAX`.
 
@@ -30,13 +37,12 @@
 
     enum class number { one = 100, two = 200, three = 300 };
 
-    namespace magic_enum::customize {
     template <>
-    struct enum_range<number> {
-      static constexpr int min = 100; // Must be greater than `INT16_MIN`.
-      static constexpr int max = 300; // Must be less than `INT16_MAX`.
+    struct magic_enum::customize::enum_range<number> {
+      static constexpr int min = 100;
+      static constexpr int max = 300;
+      // (max - min) must be less than UINT16_MAX.
     };
-    } // namespace magic_enum
     ```
 
 * `magic_enum` [won't work if a value is aliased](https://github.com/Neargye/magic_enum/issues/68). Work with enum-aliases is compiler-implementation-defined.

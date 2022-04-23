@@ -6,11 +6,15 @@
 * [`enum_count` returns number of enum values.](#enum_count)
 * [`enum_integer` obtains integer value from enum value.](#enum_integer)
 * [`enum_name` returns name from enum value.](#enum_name)
+* [`enum_flags_name` returns name from enum-flags value.](#enum_flags_name)
 * [`enum_names` obtains string enum name sequence.](#enum_names)
 * [`enum_entries` obtains pair (value enum, string enum name) sequence.](#enum_entries)
 * [`enum_index` obtains index in enum value sequence from enum value.](#enum_index)
 * [`enum_contains` checks whether enum contains enumerator with such value.](#enum_contains)
 * [`enum_type_name` returns type name of enum.](#enum_type_name)
+* [`enum_fuse` returns a bijective mix of enum values.](#enum_fuse)
+* [`enum_switch` allows runtime enum value transformation to constexpr context.](#enum_switch)
+* [`enum_for_each` calls a function with all enum constexpr value.](#enum_for_each)
 * [`is_unscoped_enum` checks whether type is an Unscoped enumeration.](#is_unscoped_enum)
 * [`is_scoped_enum` checks whether type is an Scoped enumeration.](#is_scoped_enum)
 * [`underlying_type` improved UB-free "SFINAE-friendly" underlying_type.](#underlying_type)
@@ -23,8 +27,6 @@
 
 * To check is magic_enum supported compiler use macro `MAGIC_ENUM_SUPPORTED` or constexpr constant `magic_enum::is_magic_enum_supported`.</br>
   If magic_enum used on unsupported compiler, occurs the compilation error. To suppress error define macro `MAGIC_ENUM_NO_CHECK_SUPPORT`.
-
-* For the small enum use the API from the namespace `magic_enum`, and for enum-flags use the API from the namespace `magic_enum::flags`.
 
 * To add custom enum or type names see the [example](../example/example_custom_name.cpp).
 
@@ -108,11 +110,14 @@ constexpr optional<E> enum_cast(string_view value, BinaryPredicate p) noexcept(i
 ```cpp
 template <typename E>
 constexpr E enum_value(size_t index) noexcept;
+
+template <typename E, size_t I>
+constexpr E enum_value() noexcept;
 ```
 
 * Returns enum value at specified index.
-
-* No bounds checking is performed: the behavior is undefined if `index >= number of enum values`.
+  * `enum_value(value)` no bounds checking is performed: the behavior is undefined if `index >= number of enum values`.
+  * `enum_value<value>()` check if `I >= number of enum values`, occurs the compilation error `magic_enum::enum_value out of range`.
 
 * Examples
 
@@ -120,7 +125,12 @@ constexpr E enum_value(size_t index) noexcept;
   int i = 1;
   Color color = magic_enum::enum_value<Color>(i);
   // color -> Color::BLUE
-  ````
+  ```
+
+  ```cpp
+  Color color = magic_enum::enum_value<Color, 1>();
+  // color -> Color::BLUE
+  ```
 
 ## `enum_values`
 
@@ -160,6 +170,9 @@ constexpr size_t enum_count() noexcept;
 ```cpp
 template <typename E>
 constexpr underlying_type_t<E> enum_integer(E value) noexcept;
+
+template <typename E>
+constexpr underlying_type_t<E> enum_underlying(E value) noexcept;
 ```
 
 * Returns integer value from enum value.
@@ -184,27 +197,42 @@ constexpr string_view enum_name() noexcept;
 
 * Returns name from enum value as `string_view` with null-terminated string.
   * If enum value does not have name or [out of range](limitations.md), `enum_name(value)` returns empty string.
-  * If enum value does not have name, `enum_name<value>()` occurs the compilation error `"Enum value does not have a name."`.
+  * If enum value does not have name, `enum_name<value>()` occurs the compilation error `magic_enum::enum_name enum value does not have a name`.
 
 * `enum_name<value>()` is much lighter on the compile times and is not restricted to the enum_range [limitation](limitations.md).
 
 * Examples
 
-  * Enum value to string.
+  ```cpp
+  Color color = Color::RED;
+  auto color_name = magic_enum::enum_name(color);
+  // color_name -> "RED"
+  ```
 
-    ```cpp
-    Color color = Color::RED;
-    auto color_name = magic_enum::enum_name(color);
-    // color_name -> "RED"
-    ```
+  ```cpp
+  constexpr Color color = Color::BLUE;
+  constexpr auto color_name = magic_enum::enum_name<color>();
+  // color_name -> "BLUE"
+  ```
 
-  * Static storage enum variable to string.
+## `enum_flags_name`
 
-    ```cpp
-    constexpr Color color = Color::BLUE;
-    constexpr auto color_name = magic_enum::enum_name<color>();
-    // color_name -> "BLUE"
-    ```
+```cpp
+template <typename E>
+string enum_flags_name(E value);
+```
+
+* Returns name from enum-flags value as `string` with null-terminated string.
+
+* If enum-flags value does not have name or [out of range](limitations.md),  returns empty string.
+
+* Examples
+
+  ```cpp
+  auto directions_name = magic_enum::enum_flags_name(Directions::Up | Directions::Right);
+  // directions_name -> "Directions::Up | Directions::Right"
+  ```
+
 
 ## `enum_names`
 
@@ -245,19 +273,27 @@ constexpr array<pair<E, string_view>, N> enum_entries() noexcept;
 
 ```cpp
 template <typename E>
-constexpr optional<size_t> enum_index() noexcept;
+constexpr optional<size_t> enum_index(E value) noexcept;
+
+template <auto V>
+constexpr size_t enum_index() noexcept;
 ```
 
 * Obtains index in enum values from enum value.
-
-* Returns `optional<size_t>` with index.
+  * `enum_index(value)` returns `optional<size_t>` with index.
+  * `enum_index<value>()` returns index. If enum value does not have a index, occurs the compilation error `magic_enum::enum_index enum value does not have a index`.
 
 * Examples
 
   ```cpp
   constexpr auto color_index = magic_enum::enum_index(Color::BLUE);
-  // color_index -> color_index.value() -> 1
-  // color_index -> color_index.has_value() -> true
+  // color_index.value() -> 1
+  // color_index.has_value() -> true
+  ```
+
+  ```cpp
+  constexpr auto color_index = magic_enum::enum_index<Color::BLUE>();
+  // color_index -> 1
   ```
 
 ## `enum_contains`
@@ -306,6 +342,61 @@ constexpr string_view enum_type_name() noexcept;
   auto type_name = magic_enum::enum_type_name<decltype(color)>();
   // color_name -> "Color"
   ```
+
+## `enum_fuse`
+
+```cpp
+template <typename... Es>
+[[nodiscard]] constexpr optional<enum_fuse_t> enum_fuse(Es... values) noexcept;
+```
+
+* Returns a typesafe bijective mix of several enum values. This can be used to emulate 2D switch/case statements.
+
+* Return type is `optional<enum_fuse_t>` where `enum_fuse_t` is an incomplete enum, it is unique for any given combination of `Es...`.
+
+* Switch/case statement over an incomplete enum is a Visual Studio warning C4064
+  * You have to silent (/wd4064) or ignore it.
+  * Alternatively, define `MAGIC_ENUM_NO_TYPESAFE_ENUM_FUSE` to disable type-safety (`enum_fuse_t` equals `uintmax_t`).
+
+* Examples
+
+  ```cpp
+  switch (magic_enum::enum_fuse(color, direction).value()) {
+    case magic_enum::enum_fuse(Color::RED, Directions::Up).value(): // ...
+    case magic_enum::enum_fuse(Color::BLUE, Directions::Down).value(): // ...
+    case magic_enum::enum_fuse(Directions::BLUE, Color::Down).value(): // Compilation error
+  // ...
+  }
+  ```
+
+## `enum_switch`
+
+```cpp
+template <typename Result = void, typename E, typename Lambda>
+constexpr Result enum_switch(Lambda&& lambda, E value);
+
+template <typename Result, typename E, typename Lambda>
+constexpr Result enum_switch(Lambda&& lambda, E value, Result&& result);
+
+template <typename E, typename Result = void, typename BinaryPredicate = std::equal_to<>, typename Lambda>
+constexpr Result enum_switch(Lambda&& lambda, string_view name, BinaryPredicate&& p = {});
+
+template <typename E, typename Result, typename BinaryPredicate = std::equal_to<>, typename Lambda>
+constexpr Result enum_switch(Lambda&& lambda, string_view name, Result&& result, BinaryPredicate&& p = {});
+
+template <typename E, typename Result = void, typename Lambda>
+constexpr Result enum_switch(Lambda&& lambda, underlying_type_t<E> value);
+
+template <typename E, typename Result, typename Lambda>
+constexpr Result enum_switch(Lambda&& lambda, underlying_type_t<E> value, Result&& result);
+```
+
+## `enum_for_each`
+
+```cpp
+template <typename E, typename Lambda>
+constexpr auto enum_for_each(Lambda&& lambda);
+```
 
 ## `is_unscoped_enum`
 
