@@ -5,7 +5,7 @@
 // | |  | | (_| | (_| | | (__  | |____| | | | |_| | | | | | | | |____|_|   |_|
 // |_|  |_|\__,_|\__, |_|\___| |______|_| |_|\__,_|_| |_| |_|  \_____|
 //                __/ | https://github.com/Neargye/magic_enum
-//               |___/  version 0.7.3
+//               |___/  version 0.8.0
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
@@ -33,8 +33,8 @@
 #define NEARGYE_MAGIC_ENUM_HPP
 
 #define MAGIC_ENUM_VERSION_MAJOR 0
-#define MAGIC_ENUM_VERSION_MINOR 7
-#define MAGIC_ENUM_VERSION_PATCH 3
+#define MAGIC_ENUM_VERSION_MINOR 8
+#define MAGIC_ENUM_VERSION_PATCH 0
 
 #include <array>
 #include <cassert>
@@ -1275,54 +1275,6 @@ constexpr auto enum_for_each(Lambda&& lambda) {
   static_assert(std::is_enum_v<D>, "magic_enum::enum_for_each requires enum type.");
 
   return detail::for_each<D>(std::forward<Lambda>(lambda), std::make_index_sequence<detail::count_v<D>>{});
-}
-
-namespace detail {
-
-template <typename E>
-constexpr optional<std::uintmax_t> fuse_one_enum(optional<std::uintmax_t> hash, E value) noexcept {
-  if (hash) {
-    if (const auto index = enum_index(value)) {
-      return (*hash << log2(enum_count<E>() + 1)) | *index;
-    }
-  }
-  return {};
-}
-
-template <typename E>
-constexpr optional<std::uintmax_t> fuse_enum(E value) noexcept {
-  return fuse_one_enum(0, value);
-}
-
-template <typename E, typename... Es>
-constexpr optional<std::uintmax_t> fuse_enum(E head, Es... tail) noexcept {
-  return fuse_one_enum(fuse_enum(tail...), head);
-}
-
-template <typename... Es>
-constexpr auto typesafe_fuse_enum(Es... values) noexcept {
-  enum class enum_fuse_t : std::uintmax_t;
-  const auto fuse = fuse_enum(values...);
-  if (fuse) {
-    return optional<enum_fuse_t>{static_cast<enum_fuse_t>(*fuse)};
-  }
-  return optional<enum_fuse_t>{};
-}
-
-} // namespace magic_enum::detail
-
-// Returns a bijective mix of several enum values. This can be used to emulate 2D switch/case statements.
-template <typename... Es>
-[[nodiscard]] constexpr auto enum_fuse(Es... values) noexcept {
-  static_assert((std::is_enum_v<std::decay_t<Es>> && ...), "magic_enum::enum_fuse requires enum type.");
-  static_assert(sizeof...(Es) >= 2, "magic_enum::enum_fuse requires at least 2 values.");
-  static_assert((detail::log2(enum_count<Es>() + 1) + ...) <= (sizeof(std::uintmax_t) * 8), "magic_enum::enum_fuse does not work for large enums");
-#if defined(MAGIC_ENUM_NO_TYPESAFE_ENUM_FUSE)
-  const auto fuse = detail::fuse_enum<std::decay_t<Es>...>(values...);
-#else
-  const auto fuse = detail::typesafe_fuse_enum<std::decay_t<Es>...>(values...);
-#endif
-  return assert(fuse), fuse;
 }
 
 namespace ostream_operators {
