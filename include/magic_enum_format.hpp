@@ -5,7 +5,7 @@
 // | |  | | (_| | (_| | | (__  | |____| | | | |_| | | | | | | | |____|_|   |_|
 // |_|  |_|\__,_|\__, |_|\___| |______|_| |_|\__,_|_| |_| |_|  \_____|
 //                __/ | https://github.com/Neargye/magic_enum
-//               |___/  version 0.8.2
+//               |___/  version 0.9.0
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
@@ -37,7 +37,7 @@
 #if !defined(MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT)
 #  define MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT 1
 #  define MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT_AUTO_DEFINE
-#endif // MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT
+#endif
 
 namespace magic_enum::customize {
   // customize enum to enable/disable automatic std::format
@@ -58,7 +58,7 @@ struct std::formatter<E, std::enable_if_t<std::is_enum_v<std::decay_t<E>> && mag
     using D = std::decay_t<E>;
 
     if constexpr (magic_enum::detail::supported<D>::value) {
-      if constexpr (detail::subtype_v<D> == detail::enum_subtype::flags) {
+      if constexpr (magic_enum::detail::subtype_v<D> == magic_enum::detail::enum_subtype::flags) {
         if (const auto name = magic_enum::enum_flags_name<D>(e); !name.empty()) {
           return formatter<std::string_view, char>::format(std::string_view{name.data(), name.size()}, ctx);
         }
@@ -72,7 +72,7 @@ struct std::formatter<E, std::enable_if_t<std::is_enum_v<std::decay_t<E>> && mag
   }
 };
 
-#endif // MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT
+#endif
 
 #if defined(FMT_VERSION)
 
@@ -85,7 +85,7 @@ struct fmt::formatter<E, std::enable_if_t<std::is_enum_v<std::decay_t<E>> && mag
     using D = std::decay_t<E>;
 
     if constexpr (magic_enum::detail::supported<D>::value) {
-      if constexpr (detail::subtype_v<D> == detail::enum_subtype::flags) {
+      if constexpr (magic_enum::detail::subtype_v<D> == magic_enum::detail::enum_subtype::flags) {
         if (const auto name = magic_enum::enum_flags_name<D>(e); !name.empty()) {
           return formatter<std::string_view, char>::format(std::string_view{name.data(), name.size()}, ctx);
         }
@@ -99,11 +99,11 @@ struct fmt::formatter<E, std::enable_if_t<std::is_enum_v<std::decay_t<E>> && mag
   }
 };
 
-#endif // FMT_VERSION
+#endif
 
 #if defined(MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT_AUTO_DEFINE)
 #  undef MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT
 #  undef MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT_AUTO_DEFINE
-#endif // MAGIC_ENUM_DEFAULT_ENABLE_ENUM_FORMAT_AUTO_DEFINE
+#endif
 
 #endif // NEARGYE_MAGIC_ENUM_FORMAT_HPP

@@ -5,7 +5,7 @@
 // | |  | | (_| | (_| | | (__  | |____| | | | |_| | | | | | | | |____|_|   |_|
 // |_|  |_|\__,_|\__, |_|\___| |______|_| |_|\__,_|_| |_| |_|  \_____|
 //                __/ | https://github.com/Neargye/magic_enum
-//               |___/  version 0.8.2
+//               |___/  version 0.9.0
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
@@ -56,7 +56,7 @@ struct invoke_result<F, V, true> : std::invoke_result<F, V> {};
 template <typename F, typename V>
 using invoke_result_t = typename invoke_result<F, V>::type;
 
-template <typename E, detail::enum_subtype S, typename F, std::size_t... I>
+template <typename E, enum_subtype S, typename F, std::size_t... I>
 constexpr auto common_invocable(std::index_sequence<I...>) noexcept {
   static_assert(is_enum_v<E>, "magic_enum::detail::invocable_index requires enum type.");
 
@@ -67,11 +67,11 @@ constexpr auto common_invocable(std::index_sequence<I...>) noexcept {
   }
 }
 
-template <typename E, detail::enum_subtype S, typename Result, typename F>
+template <typename E, enum_subtype S, typename Result, typename F>
 constexpr auto result_type() noexcept {
   static_assert(is_enum_v<E>, "magic_enum::detail::result_type requires enum type.");
 
-  constexpr auto seq = std::make_index_sequence<detail::count_v<E, S>>{};
+  constexpr auto seq = std::make_index_sequence<count_v<E, S>>{};
   using R = typename decltype(common_invocable<E, S, F>(seq))::type;
   if constexpr (std::is_same_v<Result, default_result_type>) {
     if constexpr (std::is_same_v<R, nonesuch>) {
@@ -90,7 +90,7 @@ constexpr auto result_type() noexcept {
   }
 }
 
-template <typename E, detail::enum_subtype S, typename Result, typename F, typename D = std::decay_t<E>, typename R = typename decltype(result_type<D, S, Result, F>())::type>
+template <typename E, enum_subtype S, typename Result, typename F, typename D = std::decay_t<E>, typename R = typename decltype(result_type<D, S, Result, F>())::type>
 using result_t = std::enable_if_t<std::is_enum_v<D> && !std::is_same_v<R, nonesuch>, R>;
 
 #if !defined(MAGIC_ENUM_ENABLE_HASH)
@@ -110,7 +110,7 @@ constexpr R invoke_r(F&& f, Args&&... args) noexcept(std::is_nothrow_invocable_r
   }
 }
 
-template <std::size_t I, std::size_t End, typename R, typename E, detail::enum_subtype S, typename F, typename Def>
+template <std::size_t I, std::size_t End, typename R, typename E, enum_subtype S, typename F, typename Def>
 constexpr decltype(auto) constexpr_switch_impl(F&& f, E value, Def&& def) {
   if constexpr(I < End) {
     constexpr auto v = enum_constant<enum_value<E, I, S>()>{};
@@ -128,7 +128,7 @@ constexpr decltype(auto) constexpr_switch_impl(F&& f, E value, Def&& def) {
   }
 }
 
-template <typename R, typename E, detail::enum_subtype S, typename F, typename Def>
+template <typename R, typename E, enum_subtype S, typename F, typename Def>
 constexpr decltype(auto) constexpr_switch(F&& f, E value, Def&& def) {
   static_assert(is_enum_v<E>, "magic_enum::detail::constexpr_switch requires enum type.");
 
@@ -142,7 +142,7 @@ constexpr decltype(auto) constexpr_switch(F&& f, E value, Def&& def) {
 
 } // namespace magic_enum::detail
 
-template <typename Result = detail::default_result_type, typename E, auto S = detail::subtype_v<std::decay_t<E>>, typename F, typename R = detail::result_t<E, S, Result, F>>
+template <typename Result = detail::default_result_type, typename E, auto S = detail::subtype_v<E>, typename F, typename R = detail::result_t<E, S, Result, F>>
 constexpr decltype(auto) enum_switch(F&& f, E value) {
   using D = std::decay_t<E>;
   static_assert(std::is_enum_v<D>, "magic_enum::enum_switch requires enum type.");
@@ -165,7 +165,7 @@ constexpr decltype(auto) enum_switch(F&& f, E value) {
   return enum_switch<Result, E, S>(std::forward<F>(f), value);
 }
 
-template <typename Result, typename E, auto S = detail::subtype_v<std::decay_t<E>>, typename F, typename R = detail::result_t<E, S, Result, F>>
+template <typename Result, typename E, auto S = detail::subtype_v<E>, typename F, typename R = detail::result_t<E, S, Result, F>>
 constexpr decltype(auto) enum_switch(F&& f, E value, Result&& result) {
   using D = std::decay_t<E>;
   static_assert(std::is_enum_v<D>, "magic_enum::enum_switch requires enum type.");
