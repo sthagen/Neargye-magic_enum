@@ -5,7 +5,7 @@
 // | |  | | (_| | (_| | | (__  | |____| | | | |_| | | | | | | | |____|_|   |_|
 // |_|  |_|\__,_|\__, |_|\___| |______|_| |_|\__,_|_| |_| |_|  \_____|
 //                __/ | https://github.com/Neargye/magic_enum
-//               |___/  version 0.9.0
+//               |___/  version 0.9.1
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
@@ -34,7 +34,7 @@
 
 #define MAGIC_ENUM_VERSION_MAJOR 0
 #define MAGIC_ENUM_VERSION_MINOR 9
-#define MAGIC_ENUM_VERSION_PATCH 0
+#define MAGIC_ENUM_VERSION_PATCH 1
 
 #include <array>
 #include <cassert>
@@ -138,8 +138,8 @@ using char_type = string_view::value_type;
 static_assert(std::is_same_v<string_view::value_type, string::value_type>, "magic_enum::customize requires same string_view::value_type and string::value_type");
 static_assert([] {
   if constexpr (std::is_same_v<char_type, wchar_t>) {
-    constexpr const char     c[] =  "abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-    constexpr const wchar_t wc[] = L"abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    constexpr const char     c[] =  "abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789|";
+    constexpr const wchar_t wc[] = L"abcdefghijklmnopqrstuvwxyz_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789|";
     static_assert(std::size(c) == std::size(wc), "magic_enum::customize identifier characters are multichars in wchar_t.");
 
     for (std::size_t i = 0; i < std::size(c); ++i) {
@@ -242,17 +242,13 @@ struct range_max<T, std::void_t<decltype(customize::enum_range<T>::max)>> : std:
 struct str_view {
   const char* str_ = nullptr;
   std::size_t size_ = 0;
-
-  constexpr const char* data() const noexcept { return str_; }
-
-  constexpr std::size_t size() const noexcept { return size_; }
 };
 
 template <std::uint16_t N>
 class static_str {
  public:
   constexpr explicit static_str(str_view str) noexcept : static_str{str.str_, std::make_integer_sequence<std::uint16_t, N>{}} {
-    assert(str.size() == N);
+    assert(str.size_ == N);
   }
 
   constexpr explicit static_str(string_view str) noexcept : static_str{str.data(), std::make_integer_sequence<std::uint16_t, N>{}} {
@@ -267,10 +263,10 @@ class static_str {
 
  private:
   template <std::uint16_t... I>
-  constexpr static_str(const char* str, std::integer_sequence<std::uint16_t, I...>) noexcept : chars_{static_cast<char_type>(str[I])..., '\0'} {}
+  constexpr static_str(const char* str, std::integer_sequence<std::uint16_t, I...>) noexcept : chars_{static_cast<char_type>(str[I])..., static_cast<char_type>('\0')} {}
 
   template <std::uint16_t... I>
-  constexpr static_str(string_view str, std::integer_sequence<std::uint16_t, I...>) noexcept : chars_{str[I]..., '\0'} {}
+  constexpr static_str(string_view str, std::integer_sequence<std::uint16_t, I...>) noexcept : chars_{str[I]..., static_cast<char_type>('\0')} {}
 
   char_type chars_[static_cast<std::size_t>(N) + 1];
 };
@@ -294,7 +290,7 @@ class static_str<0> {
 template <typename Op = std::equal_to<>>
 class case_insensitive {
   static constexpr char_type to_lower(char_type c) noexcept {
-    return (c >= 'A' && c <= 'Z') ? static_cast<char_type>(c + ('a' - 'A')) : c;
+    return (c >= static_cast<char_type>('A') && c <= static_cast<char_type>('Z')) ? static_cast<char_type>(c + (static_cast<char_type>('a') - static_cast<char_type>('A'))) : c;
   }
 
  public:
@@ -454,7 +450,7 @@ constexpr auto type_name() noexcept {
     return static_str<0>{};
   } else if constexpr (custom.first == customize::detail::customize_tag::default_tag) {
     constexpr auto name = n<E>();
-    return static_str<name.size()>{name};
+    return static_str<name.size_>{name};
   } else {
     static_assert(always_false_v<E>, "magic_enum::customize invalid.");
   }
@@ -470,16 +466,15 @@ constexpr auto n() noexcept {
   if constexpr (supported<decltype(V)>::value) {
 #if defined(MAGIC_ENUM_GET_ENUM_NAME_BUILTIN)
     constexpr auto name_ptr = MAGIC_ENUM_GET_ENUM_NAME_BUILTIN(V);
-    constexpr auto name = name_ptr ? str_view{name_ptr, std::char_traits<char>::length(name_ptr)} : str_view{};
+    auto name = name_ptr ? str_view{name_ptr, std::char_traits<char>::length(name_ptr)} : str_view{};
 #elif defined(__clang__)
     auto name = str_view{__PRETTY_FUNCTION__ + 34, sizeof(__PRETTY_FUNCTION__) - 36};
-    if (name.str_[0] == '(' || name.str_[0] == '-' || (name.str_[0] >= '0' && name.str_[0] <= '9')) {
-      name = str_view{};;
+    if (name.size_ > 22 && name.str_[0] == '(' && name.str_[1] == 'a' && name.str_[10] == ' ' && name.str_[22] == ':') {
+      name.size_ -= 23;
+      name.str_ += 23;
     }
-    constexpr auto prefix = n<decltype(V)>().size();
-    if (name.size_ > prefix && name.str_[prefix] == ':') {
-      name.size_ -= (prefix + 2);
-      name.str_ += (prefix + 2);
+    if (name.str_[0] == '(' || name.str_[0] == '-' || (name.str_[0] >= '0' && name.str_[0] <= '9')) {
+      name = str_view{};
     }
 #elif defined(__GNUC__)
     auto name = str_view{__PRETTY_FUNCTION__, sizeof(__PRETTY_FUNCTION__) - 1};
@@ -493,24 +488,24 @@ constexpr auto n() noexcept {
     if (name.str_[0] == '(') {
       name = str_view{};
     }
-    constexpr auto prefix = n<decltype(V)>().size();
-    if (name.size_ > prefix && name.str_[prefix] == ':') {
-      name.size_ -= (prefix + 2);
-      name.str_ += (prefix + 2);
-    }
 #elif defined(_MSC_VER)
     str_view name;
     if ((__FUNCSIG__[5] == '_' && __FUNCSIG__[35] != '(') || (__FUNCSIG__[5] == 'c' && __FUNCSIG__[41] != '(')) {
       name = str_view{__FUNCSIG__ + 35, sizeof(__FUNCSIG__) - 52};
-      constexpr auto prefix = n<decltype(V)>().size();
-      if (name.size_ > prefix && name.str_[prefix] == ':') {
-        name.size_ -= (prefix + 2);
-        name.str_ += (prefix + 2);
-      }
     }
 #else
     auto name = str_view{};
 #endif
+    std::size_t p = 0;
+    for (std::size_t i = 0; i < name.size_; ++i) {
+      if (name.str_[i] == ':') {
+        p = i + 1;
+      }
+    }
+    if (p > 0) {
+      name.size_ -= p;
+      name.str_ += p;
+    }
     return name;
   } else {
     return str_view{}; // Unsupported compiler or Invalid customize.
@@ -529,7 +524,7 @@ constexpr auto enum_name() noexcept {
     return static_str<0>{};
   } else if constexpr (custom.first == customize::detail::customize_tag::default_tag) {
     constexpr auto name = n<V>();
-    return static_str<name.size()>{name};
+    return static_str<name.size_>{name};
   } else {
     static_assert(always_false_v<E>, "magic_enum::customize invalid.");
   }
@@ -553,7 +548,7 @@ constexpr bool is_valid() noexcept {
     static_assert(!name.empty(), "magic_enum::customize requires not empty string.");
     return name.size() != 0;
   } else if constexpr (custom.first == customize::detail::customize_tag::default_tag) {
-    return n<v>().size() != 0;
+    return n<v>().size_ != 0;
   } else {
     return false;
   }
@@ -1243,7 +1238,7 @@ template <detail::enum_subtype S, typename E>
 // Returns name from enum-flags value.
 // If enum-flags value does not have name or value out of range, returns empty string.
 template <typename E>
-[[nodiscard]] auto enum_flags_name(E value, char_type sep = '|') -> detail::enable_if_t<E, string> {
+[[nodiscard]] auto enum_flags_name(E value, char_type sep = static_cast<char_type>('|')) -> detail::enable_if_t<E, string> {
   using D = std::decay_t<E>;
   using U = underlying_type_t<D>;
   constexpr auto S = detail::enum_subtype::flags;
