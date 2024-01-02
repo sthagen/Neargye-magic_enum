@@ -9,7 +9,7 @@
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2023 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -105,8 +105,8 @@ std::basic_istream<Char, Traits>& operator>>(std::basic_istream<Char, Traits>& i
 
 namespace iostream_operators {
 
-using namespace ostream_operators;
-using namespace istream_operators;
+using magic_enum::ostream_operators::operator<<;
+using magic_enum::istream_operators::operator>>;
 
 } // namespace magic_enum::iostream_operators
 

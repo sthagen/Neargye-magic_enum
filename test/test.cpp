@@ -1,6 +1,6 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2023 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@
 #define CATCH_CONFIG_MAIN
 #include <catch2/catch.hpp>
 
-#define MAGIC_ENUM_NO_CHECK_VALID_ENUM_TYPE
+#define MAGIC_ENUM_NO_CHECK_REFLECTED_ENUM
 #define MAGIC_ENUM_RANGE_MIN -120
 #define MAGIC_ENUM_RANGE_MAX 120
 #include <magic_enum.hpp>
