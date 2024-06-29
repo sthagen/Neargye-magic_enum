@@ -1274,3 +1274,15 @@ TEST_CASE("valid_enum") {
   REQUIRE(magic_enum::detail::is_reflected_v<Empty4, as_flags<true>>);
   REQUIRE(magic_enum::detail::is_reflected_v<Empty4, as_flags<false>>);
 }
+
+TEST_CASE("enum_reflected") {
+  REQUIRE(enum_reflected<number>(number::one));
+  REQUIRE(enum_reflected<number>(number::three));
+  REQUIRE_FALSE(enum_reflected<number>(number::four));
+  REQUIRE(enum_reflected<number>(100));
+  REQUIRE(enum_reflected<number>(101));
+  REQUIRE(enum_reflected<number>(234));
+  REQUIRE(enum_reflected<number>(300));
+  REQUIRE_FALSE(enum_reflected<number>(400));
+  REQUIRE_FALSE(enum_reflected<number>(500));
+}
