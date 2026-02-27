@@ -502,16 +502,13 @@ constexpr auto enum_for_each(Lambda&& lambda);
 
 ```cpp
 template <typename E>
-string enum_flags_name(E value);
+string enum_flags_name(E value, char_type sep);
 
 template <typename E>
 constexpr optional<E> enum_flags_cast(underlying_type_t<E> value) noexcept;
 
-template <typename E>
-constexpr optional<E> enum_flags_cast(string_view value) noexcept;
-
 template <typename E, typename BinaryPredicate>
-constexpr optional<E> enum_flags_cast(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
+constexpr optional<E> enum_flags_cast(string_view value, char_type sep, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
 
 template <typename E>
 constexpr bool enum_flags_contains(E value) noexcept;
@@ -519,11 +516,8 @@ constexpr bool enum_flags_contains(E value) noexcept;
 template <typename E>
 constexpr bool enum_flags_contains(underlying_type_t<E> value) noexcept;
 
-template <typename E>
-constexpr bool enum_flags_contains(string_view value) noexcept;
-
 template <typename E, typename BinaryPredicate>
-constexpr bool enum_flags_contains(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
+constexpr bool enum_flags_contains(string_view value, char_type sep, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
 ```
 
 * Defined in header `<magic_enum/magic_enum_flags.hpp>`
@@ -558,11 +552,14 @@ constexpr bool enum_flags_contains(string_view value, BinaryPredicate p) noexcep
 
   magic_enum::enum_flags_name(Directions::Up | Directions::Right); // -> "Directions::Up|Directions::Right"
   magic_enum::enum_flags_name(Directions::LeftAndDown); // -> "Directions::Left|Directions::Down"
+  magic_enum::enum_flags_name(Directions::Up | Directions::Right, ','); // -> "Directions::Up,Directions::Right"
 
   magic_enum::enum_flags_contains(Directions::Up | Directions::Right); // -> true
   magic_enum::enum_flags_contains(Directions::LeftAndDown); // -> false
 
   magic_enum::enum_flags_cast(3); // -> "Directions::Left|Directions::Down"
+  magic_enum::enum_flags_cast<Directions>("Directions::Left|Directions::Down"); // -> Directions::Left|Directions::Down
+  magic_enum::enum_flags_cast<Directions>("Left,Down", ','); // -> Directions::Left|Directions::Down
 
   magic_enum::enum_flags_test(Left|Down, Down); // -> "true"
   magic_enum::enum_flags_test(Left|Down, Right); // -> "false"

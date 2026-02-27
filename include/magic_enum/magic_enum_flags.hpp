@@ -131,7 +131,7 @@ template <typename E>
 // Obtains enum-flags value from name.
 // Returns optional with enum-flags value.
 template <typename E, typename BinaryPredicate = std::equal_to<>>
-[[nodiscard]] constexpr auto enum_flags_cast(string_view value, [[maybe_unused]] BinaryPredicate p = {}) noexcept(detail::is_nothrow_invocable_v<BinaryPredicate>) -> detail::enable_if_t<E, optional<std::decay_t<E>>, BinaryPredicate> {
+[[nodiscard]] constexpr auto enum_flags_cast(string_view value, [[maybe_unused]] char_type sep = static_cast<char_type>('|'), [[maybe_unused]] BinaryPredicate p = {}) noexcept(detail::is_nothrow_invocable_v<BinaryPredicate>) -> detail::enable_if_t<E, optional<std::decay_t<E>>, BinaryPredicate> {
   using D = std::decay_t<E>;
   using U = underlying_type_t<D>;
   constexpr auto S = detail::enum_subtype::flags;
@@ -143,7 +143,7 @@ template <typename E, typename BinaryPredicate = std::equal_to<>>
   } else {
     auto result = U{0};
     while (!value.empty()) {
-      const auto d = detail::find(value, '|');
+      const auto d = detail::find(value, sep);
       const auto s = (d == string_view::npos) ? value : value.substr(0, d);
       auto f = U{0};
       for (std::size_t i = 0; i < detail::count_v<D, S>; ++i) {
@@ -185,10 +185,10 @@ template <typename E>
 
 // Checks whether enum-flags contains enumerator with such name.
 template <typename E, typename BinaryPredicate = std::equal_to<>>
-[[nodiscard]] constexpr auto enum_flags_contains(string_view value, BinaryPredicate p = {}) noexcept(detail::is_nothrow_invocable_v<BinaryPredicate>) -> detail::enable_if_t<E, bool, BinaryPredicate> {
+[[nodiscard]] constexpr auto enum_flags_contains(string_view value, char_type sep = static_cast<char_type>('|'), BinaryPredicate p = {}) noexcept(detail::is_nothrow_invocable_v<BinaryPredicate>) -> detail::enable_if_t<E, bool, BinaryPredicate> {
   using D = std::decay_t<E>;
 
-  return static_cast<bool>(enum_flags_cast<D>(value, std::move(p)));
+  return static_cast<bool>(enum_flags_cast<D>(value, sep, std::move(p)));
 }
 
 // Checks whether `flags set` contains `flag`.
