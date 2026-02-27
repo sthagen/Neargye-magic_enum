@@ -25,6 +25,7 @@ jobs:
         - { cc: "clang-19", cxx: "clang++-19", os: "ubuntu-24.04", nonascii: "FALSE" }
         - { cc: "clang-20", cxx: "clang++-20", os: "ubuntu-24.04", nonascii: "FALSE" }
         - { cc: "clang-21", cxx: "clang++-21", os: "ubuntu-24.04", nonascii: "FALSE" }
+        - { cc: "clang-22", cxx: "clang++-22", os: "ubuntu-24.04", nonascii: "FALSE" }
 
     name: "${{ format('{0} NONASCII={1}', matrix.compiler.cc, matrix.compiler.nonascii) }}"
     runs-on: ${{ matrix.compiler.os }}
@@ -48,6 +49,7 @@ jobs:
             sudo apt-add-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
             sudo apt-add-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main"
             sudo apt-add-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main"
+            sudo apt-add-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-22 main"
             sudo apt-add-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble main"
           fi
           sudo apt update
