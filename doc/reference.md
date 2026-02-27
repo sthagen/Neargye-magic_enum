@@ -1,17 +1,17 @@
 # Reference
 
-* [`enum_cast` obtains enum value from string or integer.](#enum_cast)
+* [`enum_cast` returns enum value from string or integer.](#enum_cast)
 * [`enum_value` returns enum value at specified index.](#enum_value)
-* [`enum_values` obtains enum value sequence.](#enum_values)
+* [`enum_values` returns enum value sequence.](#enum_values)
 * [`enum_count` returns number of enum values.](#enum_count)
-* [`enum_integer` obtains integer value from enum value.](#enum_integer)
+* [`enum_integer` returns integer value from enum value.](#enum_integer)
 * [`enum_name` returns name from enum value.](#enum_name)
-* [`enum_names` obtains string enum name sequence.](#enum_names)
-* [`enum_entries` obtains pair (value enum, string enum name) sequence.](#enum_entries)
+* [`enum_names` returns string enum name sequence.](#enum_names)
+* [`enum_entries` returns pair (value enum, string enum name) sequence.](#enum_entries)
 * [`customize::enum_range`](#customizeenum_range)
-* [`enum_index` obtains index in enum value sequence from enum value.](#enum_index)
+* [`enum_index` returns index in enum value sequence from enum value.](#enum_index)
 * [`enum_contains` checks whether enum contains enumerator with such value.](#enum_contains)
-* [`enum_reflected` returns true if the enum value is in the range of values that can be reflected..](#enum_reflected)
+* [`enum_reflected` returns true if the enum value is in the range of values that can be reflected.](#enum_reflected)
 * [`enum_type_name` returns type name of enum.](#enum_type_name)
 * [`enum_fuse` returns a bijective mix of enum values.](#enum_fuse)
 * [`enum_switch` allows runtime enum value transformation to constexpr context.](#enum_switch)
@@ -75,12 +75,12 @@ template <typename E>
 constexpr optional<E> enum_cast(string_view value) noexcept;
 
 template <typename E, typename BinaryPredicate>
-constexpr optional<E> enum_cast(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
+constexpr optional<E> enum_cast(string_view value, BinaryPredicate p);
 ```
 
 * Defined in header `<magic_enum/magic_enum.hpp>`
 
-* Obtains enum value from string or integer.
+* Returns enum value from string or integer.
 
 * Returns `optional<E>`, using `has_value()` to check contains enum value and `value()` to get the enum value.
 
@@ -101,7 +101,7 @@ constexpr optional<E> enum_cast(string_view value, BinaryPredicate p) noexcept(i
     auto color = magic_enum::enum_cast<Color>(value, magic_enum::case_insensitive);
 
     // enum_cast with BinaryPredicate
-    auto color = magic_enum::enum_cast<Color>(value, [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); }
+    auto color = magic_enum::enum_cast<Color>(value, [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); });
 
     // enum_cast with default
     auto color_or_default = magic_enum::enum_cast<Color>(value).value_or(Color::NONE);
@@ -110,10 +110,10 @@ constexpr optional<E> enum_cast(string_view value, BinaryPredicate p) noexcept(i
   * Integer to enum value.
 
     ```cpp
-    int color_integer = 2;
+    int color_integer = 0;
     auto color = magic_enum::enum_cast<Color>(color_integer);
     if (color.has_value()) {
-        // color.value() -> Color::RED
+        // color.value() -> Color::BLUE
     }
 
     auto color_or_default = magic_enum::enum_cast<Color>(value).value_or(Color::NONE);
@@ -286,8 +286,8 @@ template <typename E, typename = void>
 struct enum_range {
   constexpr static std::size_t prefix_length = 0;
   constexpr static bool is_flags = false;
-  constexpr static int min = MAGIC_ENUM_MIN_RANGE;
-  constexpr static int max = MAGIC_ENUM_MAX_RANGE;
+  constexpr static int min = MAGIC_ENUM_RANGE_MIN;
+  constexpr static int max = MAGIC_ENUM_RANGE_MAX;
 };
 }
 
@@ -346,7 +346,7 @@ constexpr size_t enum_index() noexcept;
 
 * Defined in header `<magic_enum/magic_enum.hpp>`
 
-* Obtains index in enum values from enum value.
+* Returns index in enum values from enum value.
   * `enum_index(value)` returns `optional<size_t>` with index.
   * `enum_index<value>()` returns index. If enum value does not have a index, occurs the compilation error `magic_enum::enum_index enum value does not have a index`.
 
@@ -376,7 +376,7 @@ template <typename E>
 constexpr bool enum_contains(string_view value) noexcept;
 
 template <typename E, typename BinaryPredicate>
-constexpr bool enum_contains(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
+constexpr bool enum_contains(string_view value, BinaryPredicate p);
 ```
 
 * Defined in header `<magic_enum/magic_enum.hpp>`
@@ -502,16 +502,13 @@ constexpr auto enum_for_each(Lambda&& lambda);
 
 ```cpp
 template <typename E>
-string enum_flags_name(E value);
+string enum_flags_name(E value, char_type sep = '|');
 
 template <typename E>
 constexpr optional<E> enum_flags_cast(underlying_type_t<E> value) noexcept;
 
-template <typename E>
-constexpr optional<E> enum_flags_cast(string_view value) noexcept;
-
 template <typename E, typename BinaryPredicate>
-constexpr optional<E> enum_flags_cast(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
+constexpr optional<E> enum_flags_cast(string_view value, char_type sep = '|', BinaryPredicate p);
 
 template <typename E>
 constexpr bool enum_flags_contains(E value) noexcept;
@@ -519,14 +516,27 @@ constexpr bool enum_flags_contains(E value) noexcept;
 template <typename E>
 constexpr bool enum_flags_contains(underlying_type_t<E> value) noexcept;
 
-template <typename E>
-constexpr bool enum_flags_contains(string_view value) noexcept;
-
 template <typename E, typename BinaryPredicate>
-constexpr bool enum_flags_contains(string_view value, BinaryPredicate p) noexcept(is_nothrow_invocable_v<BinaryPredicate>);
+constexpr bool enum_flags_contains(string_view value, char_type sep = '|', BinaryPredicate p);
+
+template <typename E>
+constexpr bool enum_flags_test(E flags, E flag) noexcept;
+
+template <typename E>
+constexpr bool enum_flags_test_any(E lhs, E rhs) noexcept;
 ```
 
 * Defined in header `<magic_enum/magic_enum_flags.hpp>`
+
+* `enum_flags_name` - Returns name from enum-flags value with custom separator (default `'|'`).
+
+* `enum_flags_cast` - Returns enum-flags value from integer or string.
+
+* `enum_flags_contains` - Checks whether enum-flags contains value with such value or name.
+
+* `enum_flags_test` - Checks whether `flags set` contains `flag`. Returns `false` if `flag` equals `0`.
+
+* `enum_flags_test_any` - Checks whether `lhs flags set` and `rhs flags set` have common flags. Returns `false` if either set equals `0`.
 
 * For enum-flags add `is_flags` to specialization `enum_range` for necessary enum type. Specialization of `enum_range` must be injected in `namespace magic_enum::customize`.
   ```cpp
@@ -558,16 +568,19 @@ constexpr bool enum_flags_contains(string_view value, BinaryPredicate p) noexcep
 
   magic_enum::enum_flags_name(Directions::Up | Directions::Right); // -> "Directions::Up|Directions::Right"
   magic_enum::enum_flags_name(Directions::LeftAndDown); // -> "Directions::Left|Directions::Down"
+  magic_enum::enum_flags_name(Directions::Up | Directions::Right, ','); // -> "Directions::Up,Directions::Right"
 
   magic_enum::enum_flags_contains(Directions::Up | Directions::Right); // -> true
   magic_enum::enum_flags_contains(Directions::LeftAndDown); // -> false
 
   magic_enum::enum_flags_cast(3); // -> "Directions::Left|Directions::Down"
+  magic_enum::enum_flags_cast<Directions>("Directions::Left|Directions::Down"); // -> Directions::Left|Directions::Down
+  magic_enum::enum_flags_cast<Directions>("Left,Down", ','); // -> Directions::Left|Directions::Down
 
-  magic_enum::enum_flags_test(Left|Down, Down); // -> "true"
-  magic_enum::enum_flags_test(Left|Down, Right); // -> "false"
+  magic_enum::enum_flags_test(Left|Down, Down); // -> true
+  magic_enum::enum_flags_test(Left|Down, Right); // -> false
 
-  magic_enum::enum_flags_test_any(Left|Down|Right, Down|Right); // -> "true"
+  magic_enum::enum_flags_test_any(Left|Down|Right, Down|Right); // -> true
   ```
 
 * Or, for enum types that are deeply nested in classes and/or namespaces, declare a function called `magic_enum_define_range_adl(my_enum_type)` in the same namespace as `my_enum_type`, which magic_enum will find by ADL (because the function is in the same class/namespace as `my_enum_type`), and whose return type is a `magic_enum::customize::adl_info`.

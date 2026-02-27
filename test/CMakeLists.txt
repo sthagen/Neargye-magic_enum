@@ -58,8 +58,20 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   set(CMAKE_VERBOSE_MAKEFILE ON)
   set(OPTIONS -Wall -Wextra -Wshadow -pedantic-errors -Werror)
 
+  # Clang 22+ treats __COUNTER__ as C2y extension, but Catch2 v2 uses it
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "22.0")
+    set(OPTIONS ${OPTIONS} -Wno-c2y-extensions)
+  endif()
+
   check_cxx_compiler_flag(-std=c++20 HAS_CPP20_FLAG)
   check_cxx_compiler_flag(-std=c++23 HAS_CPP23_FLAG)
+
+  # Clang 17 with libstdc++ 14 has a known bug in C++23 mode (tuple/get incompatibility)
+  # Skip C++23 tests for Clang 17.x to avoid compilation errors
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL "17.0" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "18.0")
+    set(HAS_CPP23_FLAG FALSE)
+    message(STATUS "Skipping C++23 tests for Clang 17 due to libstdc++ 14 incompatibility")
+  endif()
 endif()
 
 function(make_test src target std)

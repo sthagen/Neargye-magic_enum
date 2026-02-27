@@ -54,6 +54,13 @@ int main() {
     std::cout << "EatsFish|CanFly = " << magic_enum::enum_integer(f2.value()) << std::endl; // CanFly|EatsFish = 1074790400
   }
 
+  // String name to enum-flags value with custom separator.
+  auto f2_custom = magic_enum::enum_flags_cast<AnimalFlags>("EatsFish,CanFly", ',');
+  if (f2_custom.has_value()) {
+    // Custom separator for enum-flags name.
+    std::cout << magic_enum::enum_flags_name(f2_custom.value(), ',') << " = " << magic_enum::enum_integer(f2_custom.value()) << std::endl; // CanFly,EatsFish = 1074790400
+  }
+
   // Integer value to enum-flags value.
   auto f3 = magic_enum::enum_cast<AnimalFlags>(1073742848);
   if (f3.has_value()) {
