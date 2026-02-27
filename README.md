@@ -58,7 +58,7 @@ If you like this project, please consider donating to one of the funds that help
   auto color = magic_enum::enum_cast<Color>(value, magic_enum::case_insensitive);
 
   // enum_cast with BinaryPredicate
-  auto color = magic_enum::enum_cast<Color>(value, [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); }
+  auto color = magic_enum::enum_cast<Color>(value, [](char lhs, char rhs) { return std::tolower(lhs) == std::tolower(rhs); });
 
   // enum_cast with default
   auto color_or_default = magic_enum::enum_cast<Color>(value).value_or(Color::NONE);
@@ -67,7 +67,7 @@ If you like this project, please consider donating to one of the funds that help
 * Integer to enum value
 
   ```cpp
-  int color_integer = 2;
+  int color_integer = 0;
   auto color = magic_enum::enum_cast<Color>(color_integer);
   if (color.has_value()) {
     // color.value() -> Color::BLUE
@@ -104,7 +104,7 @@ If you like this project, please consider donating to one of the funds that help
   ```cpp
   Color color = Color::RED;
   auto color_integer = magic_enum::enum_integer(color); // or magic_enum::enum_underlying(color);
-  // color_integer -> 1
+  // color_integer -> -10
   ```
 
 * Enum names sequence
