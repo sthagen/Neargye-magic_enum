@@ -9,7 +9,7 @@
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -31,10 +31,6 @@
 
 #ifndef NEARGYE_MAGIC_ENUM_FUSE_HPP
 #define NEARGYE_MAGIC_ENUM_FUSE_HPP
-
-#if defined(MAGIC_ENUM_USE_MODULES) && !defined(MAGIC_ENUM_INTERFACE_UNIT)
-import magic_enum;
-#else
 
 #include "magic_enum.hpp"
 
@@ -89,7 +85,5 @@ template <typename... Es>
 }
 
 } // namespace magic_enum
-
-#endif // defined(MAGIC_ENUM_USE_MODULES) && !defined(MAGIC_ENUM_INTERFACE_UNIT)
 
 #endif // NEARGYE_MAGIC_ENUM_FUSE_HPP

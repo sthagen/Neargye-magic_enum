@@ -1,6 +1,6 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 // Copyright (c) 2022 - 2023 Bela Schaum <schaumb@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -31,8 +31,8 @@
 #endif
 
 #include <new>
-#define CATCH_CONFIG_MAIN
-#include <catch2/catch.hpp>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest/doctest.h>
 
 #include <magic_enum/magic_enum_containers.hpp>
 #include <magic_enum/magic_enum_iostream.hpp>
@@ -128,7 +128,7 @@ TEST_CASE("containers_array") {
   REQUIRE(color_rgb_container.at(Color::RED).empty());
   REQUIRE(color_rgb_container.at(Color::GREEN).empty());
   REQUIRE(color_rgb_container.at(Color::BLUE).empty());
-  REQUIRE_THROWS(color_rgb_container.at(Color::BLUE|Color::GREEN).empty());
+  REQUIRE_THROWS(color_rgb_container.at(Color::BLUE|Color::GREEN));
 
   color_rgb_container[Color::RED] = {color_max, 0, 0};
   color_rgb_container[Color::GREEN] = {0, color_max, 0};

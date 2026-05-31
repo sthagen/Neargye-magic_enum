@@ -9,7 +9,7 @@
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 // Copyright (c) 2022 - 2023 Bela Schaum <schaumb@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
@@ -32,10 +32,6 @@
 
 #ifndef NEARGYE_MAGIC_ENUM_CONTAINERS_HPP
 #define NEARGYE_MAGIC_ENUM_CONTAINERS_HPP
-
-#if defined(MAGIC_ENUM_USE_MODULES) && !defined(MAGIC_ENUM_INTERFACE_UNIT)
-import magic_enum;
-#else
 
 #include "magic_enum.hpp"
 
@@ -1174,7 +1170,5 @@ constexpr std::enable_if_t<std::is_same_v<decltype(Enum), E> && enum_contains(En
 }
 
 } // namespace magic_enum::containers
-
-#endif // defined(MAGIC_ENUM_USE_MODULES) && !defined(MAGIC_ENUM_INTERFACE_UNIT)
 
 #endif // NEARGYE_MAGIC_ENUM_CONTAINERS_HPP

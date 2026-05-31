@@ -1,6 +1,6 @@
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -21,8 +21,8 @@
 // SOFTWARE.
 
 #include <new>
-#define CATCH_CONFIG_MAIN
-#include <catch2/catch.hpp>
+#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
+#include <doctest/doctest.h>
 
 #include "aliases.hpp"
 

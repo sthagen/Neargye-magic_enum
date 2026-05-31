@@ -9,7 +9,7 @@
 //
 // Licensed under the MIT License <http://opensource.org/licenses/MIT>.
 // SPDX-License-Identifier: MIT
-// Copyright (c) 2019 - 2024 Daniil Goncharov <neargye@gmail.com>.
+// Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 //
 // Permission is hereby  granted, free of charge, to any  person obtaining a copy
 // of this software and associated  documentation files (the "Software"), to deal
@@ -35,10 +35,6 @@
 #define MAGIC_ENUM_VERSION_MAJOR 0
 #define MAGIC_ENUM_VERSION_MINOR 9
 #define MAGIC_ENUM_VERSION_PATCH 8
-
-#if defined(MAGIC_ENUM_USE_MODULES) && !defined(MAGIC_ENUM_INTERFACE_UNIT)
-import magic_enum;
-#else
 
 #ifndef MAGIC_ENUM_USE_STD_MODULE
 #include <array>
@@ -1549,7 +1545,5 @@ constexpr E& operator^=(E& lhs, E rhs) noexcept {
 #undef MAGIC_ENUM_VS_2017_WORKAROUND
 #undef MAGIC_ENUM_ARRAY_CONSTEXPR
 #undef MAGIC_ENUM_FOR_EACH_256
-
-#endif // defined(MAGIC_ENUM_USE_MODULES) && !defined(MAGIC_ENUM_INTERFACE_UNIT)
 
 #endif // NEARGYE_MAGIC_ENUM_HPP
