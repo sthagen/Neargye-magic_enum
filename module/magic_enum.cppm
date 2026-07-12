@@ -2,35 +2,37 @@ module;
 
 #include <version>
 #if __has_include(<fmt/format.h>)
-#include <fmt/format.h>
+#  include <fmt/format.h>
 #endif
 
 #ifndef MAGIC_ENUM_USE_STD_MODULE
 
-#if defined(__cpp_lib_format)
-#include <format>
-#endif
+#  include <compare>
+#  if __has_include(<format>)
+#    include <format>
+#  endif
 
-#include <magic_enum/magic_enum.hpp>
-#ifndef MAGIC_ENUM_USING_ALIAS_STRING
-#include <magic_enum/magic_enum_containers.hpp>
-#endif
-#include <magic_enum/magic_enum_flags.hpp>
-#include <magic_enum/magic_enum_format.hpp>
-#include <magic_enum/magic_enum_fuse.hpp>
-#include <magic_enum/magic_enum_iostream.hpp>
-#include <magic_enum/magic_enum_switch.hpp>
-#include <magic_enum/magic_enum_utility.hpp>
+#  include <magic_enum/magic_enum.hpp>
+#  ifndef MAGIC_ENUM_USING_ALIAS_STRING
+#    include <magic_enum/magic_enum_containers.hpp>
+#  endif
+#  include <magic_enum/magic_enum_flags.hpp>
+#  include <magic_enum/magic_enum_format.hpp>
+#  include <magic_enum/magic_enum_fuse.hpp>
+#  include <magic_enum/magic_enum_iostream.hpp>
+#  include <magic_enum/magic_enum_switch.hpp>
+#  include <magic_enum/magic_enum_utility.hpp>
 
 #else // MAGIC_ENUM_USE_STD_MODULE
-/*
-Note: MAGIC_ENUM_CONFIG_FILE may include STL headers,
-      it is required to attach them to global module fragement
-      otherwise there can be conflicting declarations with std module.
-*/
-#ifdef MAGIC_ENUM_CONFIG_FILE
-#  include MAGIC_ENUM_CONFIG_FILE
-#endif // MAGIC_ENUM_CONFIG_FILE
+
+// Note: MAGIC_ENUM_CONFIG_FILE may include STL headers, it is required to attach them to global module fragement otherwise there can be conflicting declarations with std module.
+#  ifdef MAGIC_ENUM_CONFIG_FILE
+#    include MAGIC_ENUM_CONFIG_FILE
+#  endif // MAGIC_ENUM_CONFIG_FILE
+
+#  if !defined(MAGIC_ENUM_NO_ASSERT) && !defined(MAGIC_ENUM_ASSERT)
+#    include <cassert>
+#  endif
 
 #endif // MAGIC_ENUM_USE_STD_MODULE
 
@@ -40,30 +42,30 @@ export module magic_enum;
 import std;
 
 extern "C++" {
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Winclude-angled-in-module-purview"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 5244)
-#endif
+#  if defined(__clang__)
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Winclude-angled-in-module-purview"
+#  elif defined(_MSC_VER)
+#    pragma warning(push)
+#    pragma warning(disable : 5244)
+#  endif
 
-#include <magic_enum/magic_enum.hpp>
-#ifndef MAGIC_ENUM_USING_ALIAS_STRING
-#include <magic_enum/magic_enum_containers.hpp>
-#endif
-#include <magic_enum/magic_enum_flags.hpp>
-#include <magic_enum/magic_enum_format.hpp>
-#include <magic_enum/magic_enum_fuse.hpp>
-#include <magic_enum/magic_enum_iostream.hpp>
-#include <magic_enum/magic_enum_switch.hpp>
-#include <magic_enum/magic_enum_utility.hpp>
+#  include <magic_enum/magic_enum.hpp>
+#  ifndef MAGIC_ENUM_USING_ALIAS_STRING
+#    include <magic_enum/magic_enum_containers.hpp>
+#  endif
+#  include <magic_enum/magic_enum_flags.hpp>
+#  include <magic_enum/magic_enum_format.hpp>
+#  include <magic_enum/magic_enum_fuse.hpp>
+#  include <magic_enum/magic_enum_iostream.hpp>
+#  include <magic_enum/magic_enum_switch.hpp>
+#  include <magic_enum/magic_enum_utility.hpp>
 
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
+#  if defined(__clang__)
+#    pragma clang diagnostic pop
+#  elif defined(_MSC_VER)
+#    pragma warning(pop)
+#  endif
 }
 #endif
 
@@ -104,7 +106,15 @@ namespace bitwise_operators {
 namespace containers {
     using containers::array;
     using containers::bitset;
+    using containers::comparator_indexing;
+    using containers::default_indexing;
     using containers::get;
+    using containers::make_array;
+    using containers::name_greater;
+    using containers::name_greater_case_insensitive;
+    using containers::name_less;
+    using containers::name_less_case_insensitive;
+    using containers::raw_access;
     using containers::set;
     using containers::to_array;
 }
@@ -145,6 +155,8 @@ namespace containers {
     using magic_enum::is_unscoped_enum_v;
     using magic_enum::is_scoped_enum;
     using magic_enum::is_scoped_enum_v;
+    using magic_enum::is_flags_enum;
+    using magic_enum::is_flags_v;
     using magic_enum::underlying_type;
     using magic_enum::underlying_type_t;
 
@@ -155,7 +167,15 @@ namespace detail {
 #endif
 }
 
-#if defined(__cpp_lib_format)
+#if defined(__cpp_lib_three_way_comparison) && __cpp_lib_three_way_comparison >= 201907L
+export namespace std {
+    using std::partial_ordering;
+    using std::strong_ordering;
+    using std::weak_ordering;
+}
+#endif
+
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
 export namespace std {
     using std::formatter;
 }

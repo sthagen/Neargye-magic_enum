@@ -20,7 +20,7 @@ configure_pkg_config_file(<targetName>
 	INSTALL_LIB_DIR <path to something like CMAKE_INSTALL_LIBDIR>
 	INSTALL_INCLUDE_DIR <path to something like CMAKE_INSTALL_INCLUDEDIR>
 	REQUIRES ... <list of pkg-config packages this one depends on> ...
-	REQUIRES ... <list of pkg-config packages this one conflicts with> ...
+	CONFLICTS ... <list of pkg-config packages this one conflicts with> ...
 )
 ```
 
@@ -38,8 +38,8 @@ Issuees
 
 	6. `file(GENERATE` doesn't properly register dependencies
 	... so we have to use `add_custom_command` to say CMake that these files are generated
-	
-	7. And CMake `install(FILES` doesn't mean that the targets generating these files are automatically executed, 
-	
+
+	7. And CMake `install(FILES` doesn't mean that the targets generating these files are automatically executed,
+
 	So we have to use `ALL` in `add_custom_target`.
 

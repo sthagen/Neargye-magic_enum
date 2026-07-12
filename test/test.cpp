@@ -30,12 +30,15 @@
 #include <magic_enum/magic_enum.hpp>
 #include <magic_enum/magic_enum_fuse.hpp>
 #include <magic_enum/magic_enum_iostream.hpp>
+#include <magic_enum/magic_enum_switch.hpp>
 #include <magic_enum/magic_enum_utility.hpp>
+
+#include "test_helpers.hpp"
 
 #include <array>
 #include <cctype>
+#include <string>
 #include <string_view>
-#include <sstream>
 
 enum class Color { RED = -12, GREEN = 7, BLUE = 15 };
 template <>
@@ -140,8 +143,16 @@ struct magic_enum::customize::enum_range<CStyleEnum> {
 enum class BoolTest : bool { Yay, Nay };
 
 using namespace magic_enum;
+using namespace magic_enum_tests;
 
 static_assert(is_magic_enum_supported, "magic_enum: Unsupported compiler (https://github.com/Neargye/magic_enum#compiler-compatibility).");
+
+template <typename... Ts>
+struct overloaded : Ts... {
+  using Ts::operator()...;
+};
+template <typename... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
 
 TEST_CASE("enum_cast") {
   SUBCASE("string") {
@@ -238,11 +249,16 @@ TEST_CASE("enum_cast") {
 TEST_CASE("enum_integer") {
   Color cm[3] = {Color::RED, Color::GREEN, Color::BLUE};
   constexpr auto cr = enum_integer(Color::RED);
+  constexpr auto cr_underlying = enum_underlying(Color::RED);
   Color cg = Color::GREEN;
   REQUIRE(cr == -12);
+  REQUIRE(cr_underlying == -12);
   REQUIRE(enum_integer<Color&>(cg) == 7);
+  REQUIRE(enum_underlying<Color&>(cg) == 7);
   REQUIRE(enum_integer(cm[2]) == 15);
+  REQUIRE(enum_underlying(cm[2]) == 15);
   REQUIRE(enum_integer(static_cast<Color>(0)) == 0);
+  REQUIRE(enum_underlying(static_cast<Color>(0)) == 0);
 
   constexpr auto no = enum_integer(Numbers::one);
   REQUIRE(no == 1);
@@ -749,65 +765,105 @@ TEST_CASE("enum_entries") {
   REQUIRE(s4 == std::array<std::pair<number, std::string_view>, 3>{{{number::one, "one"}, {number::two, "two"}, {number::three, "three"}}});
 }
 
+TEST_CASE("string_view lifetime and null termination") {
+  std::string_view static_name{};
+  static_name = enum_name<Color::BLUE>();
+  require_null_terminated(static_name, "BLUE");
+
+  std::string_view customized_name{};
+  customized_name = enum_name(Color::RED);
+  require_null_terminated(customized_name, "red");
+
+  std::string_view value_name{};
+  value_name = enum_name(Directions::Up);
+  require_null_terminated(value_name, "Up");
+
+  std::string_view invalid_name{};
+  invalid_name = enum_name(static_cast<Numbers>(0));
+  require_null_terminated(invalid_name, "");
+
+  std::string_view type_name{};
+  type_name = enum_type_name<Numbers>();
+  require_null_terminated(type_name, "Numbers");
+
+  std::string_view array_name{};
+  array_name = enum_names<Color>()[1];
+  require_null_terminated(array_name, "GREEN");
+
+  std::string_view entry_name{};
+  entry_name = enum_entries<Directions>()[3].second;
+  require_null_terminated(entry_name, "Right");
+
+  std::string_view prefixed_name{};
+  prefixed_name = enum_name(CStyleEnum_A);
+  require_null_terminated(prefixed_name, "A");
+
+  std::string_view prefixed_entry_name{};
+  prefixed_entry_name = enum_entries<CStyleEnum>()[0].second;
+  require_null_terminated(prefixed_entry_name, "A");
+
+  for (std::string_view name : enum_names<Color>()) {
+    require_null_terminated(name);
+  }
+  for (std::string_view name : enum_names<Numbers>()) {
+    require_null_terminated(name);
+  }
+  for (const auto& entry : enum_entries<Color>()) {
+    require_null_terminated(entry.second);
+  }
+  for (const auto& entry : enum_entries<Directions>()) {
+    require_null_terminated(entry.second);
+  }
+  for (std::string_view name : enum_names<CStyleEnum>()) {
+    require_null_terminated(name);
+  }
+  for (const auto& entry : enum_entries<CStyleEnum>()) {
+    require_null_terminated(entry.second);
+  }
+}
+
 TEST_CASE("ostream_operators") {
-  auto test_ostream = [](auto e, std::string name) {
-    using namespace magic_enum::ostream_operators;
-    std::stringstream ss;
-    ss << e;
-    REQUIRE(ss);
-    REQUIRE(ss.str() == name);
-  };
+  require_ostream(std::make_optional(Color::RED), "red");
+  require_ostream(Color::GREEN, "GREEN");
+  require_ostream(Color::BLUE, "BLUE");
+  require_ostream(static_cast<Color>(0), "0");
+  require_ostream(std::make_optional(static_cast<Color>(0)), "0");
 
-  test_ostream(std::make_optional(Color::RED), "red");
-  test_ostream(Color::GREEN, "GREEN");
-  test_ostream(Color::BLUE, "BLUE");
-  test_ostream(static_cast<Color>(0), "0");
-  test_ostream(std::make_optional(static_cast<Color>(0)), "0");
+  require_ostream(std::make_optional(Numbers::one), "one");
+  require_ostream(Numbers::two, "two");
+  require_ostream(Numbers::three, "three");
+  require_ostream(Numbers::many, "127");
+  require_ostream(static_cast<Numbers>(0), "0");
+  require_ostream(std::make_optional(static_cast<Numbers>(0)), "0");
 
-  test_ostream(std::make_optional(Numbers::one), "one");
-  test_ostream(Numbers::two, "two");
-  test_ostream(Numbers::three, "three");
-  test_ostream(Numbers::many, "127");
-  test_ostream(static_cast<Numbers>(0), "0");
-  test_ostream(std::make_optional(static_cast<Numbers>(0)), "0");
+  require_ostream(std::make_optional(Directions::Up), "Up");
+  require_ostream(Directions::Down, "Down");
+  require_ostream(Directions::Right, "Right");
+  require_ostream(Directions::Left, "Left");
+  require_ostream(static_cast<Directions>(0), "0");
+  require_ostream(std::make_optional(static_cast<Directions>(0)), "0");
 
-  test_ostream(std::make_optional(Directions::Up), "Up");
-  test_ostream(Directions::Down, "Down");
-  test_ostream(Directions::Right, "Right");
-  test_ostream(Directions::Left, "Left");
-  test_ostream(static_cast<Directions>(0), "0");
-  test_ostream(std::make_optional(static_cast<Directions>(0)), "0");
-
-  test_ostream(std::make_optional(number::one), "one");
-  test_ostream(number::two, "two");
-  test_ostream(number::three, "three");
-  test_ostream(number::four, "400");
-  test_ostream(static_cast<number>(0), "0");
-  test_ostream(std::make_optional(static_cast<number>(0)), "0");
+  require_ostream(std::make_optional(number::one), "one");
+  require_ostream(number::two, "two");
+  require_ostream(number::three, "three");
+  require_ostream(number::four, "400");
+  require_ostream(static_cast<number>(0), "0");
+  require_ostream(std::make_optional(static_cast<number>(0)), "0");
 }
 
 TEST_CASE("istream_operators") {
-  auto test_istream = [](const auto e, std::string name) {
-    using namespace magic_enum::istream_operators;
-    std::istringstream ss(name);
-    std::decay_t<decltype(e)> v;
-    ss >> v;
-    REQUIRE(ss);
-    REQUIRE(v == e);
-  };
+  require_istream(Color::GREEN, "GREEN");
+  require_istream(Color::BLUE, "BLUE");
 
-  test_istream(Color::GREEN, "GREEN");
-  test_istream(Color::BLUE, "BLUE");
+  require_istream(Numbers::two, "two");
+  require_istream(Numbers::three, "three");
 
-  test_istream(Numbers::two, "two");
-  test_istream(Numbers::three, "three");
+  require_istream(Directions::Down, "Down");
+  require_istream(Directions::Right, "Right");
+  require_istream(Directions::Left, "Left");
 
-  test_istream(Directions::Down, "Down");
-  test_istream(Directions::Right, "Right");
-  test_istream(Directions::Left, "Left");
-
-  test_istream(number::two, "two");
-  test_istream(number::three, "three");
+  require_istream(number::two, "two");
+  require_istream(number::three, "three");
 }
 
 TEST_CASE("bitwise_operators") {
@@ -897,6 +953,10 @@ TEST_CASE("bitwise_operators") {
 }
 
 TEST_CASE("type_traits") {
+  REQUIRE(std::is_same_v<Enum<Color>, Color>);
+  REQUIRE(std::is_same_v<underlying_type_t<const Color&>, int>);
+  REQUIRE(std::is_same_v<underlying_type<Directions>::type, std::underlying_type_t<Directions>>);
+
   REQUIRE_FALSE(is_unscoped_enum_v<Color>);
   REQUIRE_FALSE(is_unscoped_enum_v<Numbers>);
   REQUIRE(is_unscoped_enum_v<Directions>);
@@ -906,6 +966,43 @@ TEST_CASE("type_traits") {
   REQUIRE(is_scoped_enum_v<Numbers>);
   REQUIRE_FALSE(is_scoped_enum_v<Directions>);
   REQUIRE_FALSE(is_scoped_enum_v<number>);
+
+  REQUIRE_FALSE(is_flags_enum<Color>::value);
+  REQUIRE_FALSE(is_flags_v<Numbers>);
+  REQUIRE_FALSE(is_flags_v<Directions>);
+}
+
+TEST_CASE("enum_switch") {
+  SUBCASE("complete invocable") {
+    constexpr auto red = enum_switch<int>([](auto val) {
+      return enum_integer(val());
+    }, Color::RED);
+
+    REQUIRE(red == -12);
+    REQUIRE(enum_switch<int>([](auto val) {
+      return enum_integer(val());
+    }, Color::GREEN) == 7);
+  }
+
+  SUBCASE("partial invocable falls back to default result") {
+    const auto switcher = overloaded{
+      [](enum_constant<Color::RED>) { return 1; },
+      [](enum_constant<Color::BLUE>) { return 2; }
+    };
+
+    REQUIRE(enum_switch<int>(switcher, Color::RED, -1) == 1);
+    REQUIRE(enum_switch<int>(switcher, Color::BLUE, -1) == 2);
+    REQUIRE(enum_switch<int>(switcher, Color::GREEN, -1) == -1);
+  }
+
+  SUBCASE("invalid enum value falls back to default result") {
+    REQUIRE(enum_switch<int>([](auto val) {
+      return enum_integer(val());
+    }, static_cast<Color>(0)) == 0);
+    REQUIRE(enum_switch<int>([](auto val) {
+      return enum_integer(val());
+    }, static_cast<Color>(0), -1) == -1);
+  }
 }
 
 TEST_CASE("enum_type_name") {
@@ -1236,10 +1333,13 @@ TEST_CASE("multdimensional-switch-case") {
 
 #endif
 
-#if defined(__cpp_lib_format)
+#if __has_include(<format>)
+#  include <format>
+#endif
 
-#include <format>
-#include <magic_enum/magic_enum_format.hpp>
+#if defined(__cpp_lib_format) && __cpp_lib_format >= 201907L
+
+#  include <magic_enum/magic_enum_format.hpp>
 
 TEST_CASE("format-base") {
   REQUIRE(std::format("{}", Color::RED) == "red");
