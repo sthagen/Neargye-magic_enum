@@ -50,6 +50,13 @@ endif()
 option(MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION "Test against an installed magic_enum CMake package" OFF)
 option(MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION_PKGCONFIG "Test against an installed magic_enum pkg-config package" OFF)
 
+if(MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION AND MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION_PKGCONFIG)
+  message(FATAL_ERROR "MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION and MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION_PKGCONFIG are mutually exclusive")
+endif()
+if(MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION_PKGCONFIG AND MAGIC_ENUM_USE_MODULES)
+  message(FATAL_ERROR "MAGIC_ENUM_OPT_TEST_INSTALLED_VERSION_PKGCONFIG does not support MAGIC_ENUM_USE_MODULES")
+endif()
+
 set(MAGIC_ENUM_MODULE_CXX_STANDARD 20)
 if(DEFINED CMAKE_CXX_STANDARD AND
    CMAKE_CXX_STANDARD GREATER MAGIC_ENUM_MODULE_CXX_STANDARD)
@@ -122,6 +129,9 @@ function(magic_enum_make_module_library name)
   )
   target_link_libraries(${name} PUBLIC ${PROJECT_NAME})
   target_compile_features(${name} PUBLIC cxx_std_${MAGIC_ENUM_MODULE_CXX_STANDARD})
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT MAGIC_ENUM_MODULE_IMPORT_STD)
+    target_compile_options(${name} PRIVATE -Wno-include-angled-in-module-purview)
+  endif()
   if(ARGC GREATER 1)
     # Optional private definitions build test variants with custom magic_enum configurations.
     target_compile_definitions(${name} PRIVATE ${ARGN})
