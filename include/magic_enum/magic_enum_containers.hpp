@@ -39,6 +39,7 @@
 #  include <initializer_list>
 #  include <ios>
 #  include <iterator>
+#  include <string_view>
 #endif
 
 #if !defined(MAGIC_ENUM_USE_STD_MODULE) && __has_include(<bit>) && (__cplusplus >= 202002L || (defined(_MSVC_LANG) && _MSVC_LANG >= 202002L))
@@ -157,7 +158,21 @@ constexpr auto equal_range(BidirIt begin, BidirIt end, E&& e, Cmp&& comp = {}) {
   return std::pair{first, detail::upper_bound(first, end, e, comp)};
 }
 
-template <typename E = void, typename Cmp = std::less<E>, typename = void>
+template <typename E, typename Cmp>
+constexpr bool is_default_order() noexcept {
+  if constexpr (!std::is_void_v<E> && !std::is_void_v<Cmp>) {
+    constexpr auto& values = enum_values<E>();
+    constexpr Cmp cmp{};
+    for (std::size_t i = 1; i < values.size(); ++i) {
+      if (cmp(values[i], values[i - 1])) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+template <typename E = void, typename Cmp = void, typename = void>
 class indexing {
   [[nodiscard]] static constexpr auto get_indices() noexcept {
     // reverse result index mapping
@@ -211,7 +226,7 @@ class indexing {
 };
 
 template <typename E, typename Cmp>
-class indexing<E, Cmp, std::enable_if_t<std::is_enum_v<std::decay_t<E>> && (std::is_same_v<Cmp, std::less<E>> || std::is_same_v<Cmp, std::less<>>)>> {
+class indexing<E, Cmp, std::enable_if_t<std::is_enum_v<E> && is_default_order<E, Cmp>()>> {
   static constexpr auto& values = enum_values<E>();
 
  public:
@@ -757,7 +772,7 @@ class bitset {
     }
 
     constexpr iterator_impl& operator--() noexcept {
-      base_type search_mask;
+      base_type search_mask = 0;
       if (num_index >= base_type_count) {
         num_index = base_type_count - 1;
         search_mask = last_value_max;
@@ -1073,7 +1088,7 @@ class bitset {
   template <typename Traits>
   friend std::basic_ostream<char_type, Traits>& operator<<(std::basic_ostream<char_type, Traits>& o, const bitset& bs) {
     const auto s = bs.to_string();
-    return o.write(s.data(), static_cast<std::streamsize>(s.size()));
+    return o << std::basic_string_view<char_type, Traits>{s.data(), s.size()};
   }
 
   template <typename Traits>
@@ -1171,9 +1186,9 @@ class set {
 
   constexpr const_iterator cend() const noexcept { return end(); }
 
-  constexpr const_reverse_iterator rbegin() const noexcept { return {end()}; }
+  constexpr const_reverse_iterator rbegin() const noexcept { return const_reverse_iterator{end()}; }
 
-  constexpr const_reverse_iterator rend() const noexcept { return {begin()}; }
+  constexpr const_reverse_iterator rend() const noexcept { return const_reverse_iterator{begin()}; }
 
   constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
 
@@ -1383,22 +1398,22 @@ template <typename V, int = 0>
 explicit set(V starter) -> set<V>;
 
 template <auto J, typename E, typename V, typename Index>
-constexpr std::enable_if_t<(std::is_integral_v<decltype(J)> && J < enum_count<E>()), V&> get(array<E, V, Index>& a) noexcept {
+constexpr std::enable_if_t<(std::is_integral_v<decltype(J)> && J >= 0 && J < enum_count<E>()), V&> get(array<E, V, Index>& a) noexcept {
   return a.a[J];
 }
 
 template <auto J, typename E, typename V, typename Index>
-constexpr std::enable_if_t<(std::is_integral_v<decltype(J)> && J < enum_count<E>()), V&&> get(array<E, V, Index>&& a) noexcept {
+constexpr std::enable_if_t<(std::is_integral_v<decltype(J)> && J >= 0 && J < enum_count<E>()), V&&> get(array<E, V, Index>&& a) noexcept {
   return std::move(a.a[J]);
 }
 
 template <auto J, typename E, typename V, typename Index>
-constexpr std::enable_if_t<(std::is_integral_v<decltype(J)> && J < enum_count<E>()), const V&> get(const array<E, V, Index>& a) noexcept {
+constexpr std::enable_if_t<(std::is_integral_v<decltype(J)> && J >= 0 && J < enum_count<E>()), const V&> get(const array<E, V, Index>& a) noexcept {
   return a.a[J];
 }
 
 template <auto J, typename E, typename V, typename Index>
-constexpr std::enable_if_t<(std::is_integral_v<decltype(J)> && J < enum_count<E>()), const V&&> get(const array<E, V, Index>&& a) noexcept {
+constexpr std::enable_if_t<(std::is_integral_v<decltype(J)> && J >= 0 && J < enum_count<E>()), const V&&> get(const array<E, V, Index>&& a) noexcept {
   return std::move(a.a[J]);
 }
 

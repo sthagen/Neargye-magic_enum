@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 
-#include <new>
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
 #define MAGIC_ENUM_NO_CHECK_REFLECTED_ENUM
@@ -252,6 +250,87 @@ struct RefQualifiedPredicate {
   constexpr bool operator()(char lhs, char rhs) & noexcept(false) { return lhs == rhs; }
   constexpr bool operator()(char lhs, char rhs) && noexcept { return lhs == rhs; }
 };
+
+TEST_CASE("bool enum text lookup does not convert pointers to true") {
+  static_assert(enum_cast<BoolTest>("Yay") == BoolTest::Yay);
+  static_assert(enum_cast<const BoolTest&>("Nay") == BoolTest::Nay);
+  static_assert(!enum_cast<BoolTest>("INVALID").has_value());
+  static_assert(!enum_cast<BoolTest>("").has_value());
+  static_assert(enum_contains<BoolTest>("Yay"));
+  static_assert(!enum_contains<BoolTest>("INVALID"));
+  static_assert(!enum_contains<BoolTest>(""));
+  static_assert(enum_cast<BoolTest, as_common<>>("Yay") == BoolTest::Yay);
+  static_assert(enum_cast<BoolTest>("yay", case_insensitive) == BoolTest::Yay);
+  static_assert(enum_cast<BoolTest>("Yay", ConstReferencePredicate{}) == BoolTest::Yay);
+  static_assert(enum_contains<BoolTest>("Yay", ConstReferencePredicate{}));
+  constexpr bool nothrow_name = std::is_nothrow_constructible_v<string_view, decltype("Yay")>;
+  static_assert(noexcept(enum_cast<BoolTest>("Yay")) == nothrow_name);
+  static_assert(noexcept(enum_contains<BoolTest>("Yay")) == nothrow_name);
+  static_assert(noexcept(enum_cast<BoolTest>(std::declval<string_view>())));
+  static_assert(noexcept(enum_contains<BoolTest>(std::declval<string_view>())));
+  static_assert(!noexcept(enum_cast<BoolTest>("Yay", ThrowingReferencePredicate{})));
+
+  constexpr const char* false_name = "Yay";
+  constexpr const char* invalid_name = "INVALID";
+  static_assert(enum_cast<BoolTest>(false_name) == BoolTest::Yay);
+  static_assert(!enum_cast<BoolTest>(invalid_name).has_value());
+  static_assert(enum_cast<BoolTest>(string_view{"Yay-extra", 3}) == BoolTest::Yay);
+  static_assert(enum_cast<BoolTest>({"Yay-extra", 3}) == BoolTest::Yay);
+
+  for (const char* name : {"Yay", "Nay", "INVALID", "", "yay", "Yay-extra"}) {
+    const auto expected = enum_cast<BoolTest>(string_view{name});
+    CHECK(enum_cast<BoolTest>(name) == expected);
+    CHECK(enum_contains<BoolTest>(name) == expected.has_value());
+    const std::string owned{name};
+    CHECK(enum_cast<BoolTest>(owned) == expected);
+    CHECK(enum_cast<BoolTest>(std::string{name}) == expected);
+    CHECK(enum_contains<BoolTest>(owned) == expected.has_value());
+  }
+  char mutable_name[] = "Yay";
+  char* mutable_pointer = mutable_name;
+  CHECK(enum_cast<BoolTest>(mutable_name) == BoolTest::Yay);
+  CHECK(enum_cast<BoolTest>(mutable_pointer) == BoolTest::Yay);
+  CHECK(enum_contains<BoolTest>(mutable_pointer));
+  CHECK(enum_cast<BoolTest>(false) == BoolTest::Yay);
+  CHECK(enum_cast<BoolTest>(true) == BoolTest::Nay);
+  CHECK(enum_cast<BoolTest>(0) == BoolTest::Yay);
+  CHECK(enum_cast<BoolTest>(1) == BoolTest::Nay);
+  REQUIRE_THROWS_AS(static_cast<void>(enum_cast<BoolTest>("Yay", ThrowingReferencePredicate{})), int);
+
+  struct BorrowedName {
+    BorrowedName() = default;
+    BorrowedName(const BorrowedName&) = delete;
+    operator string_view() & noexcept { return "Yay"; }
+    operator bool() const noexcept { return true; }
+  };
+  BorrowedName borrowed;
+  CHECK(enum_cast<BoolTest>(borrowed) == BoolTest::Yay);
+  CHECK(enum_contains<BoolTest>(borrowed));
+  static_assert(noexcept(enum_cast<BoolTest>(borrowed)));
+
+  struct TemporaryName {
+    operator string_view() && noexcept { return "Yay"; }
+  };
+  CHECK(enum_cast<BoolTest>(TemporaryName{}) == BoolTest::Yay);
+  CHECK(enum_contains<BoolTest>(TemporaryName{}));
+
+  struct ThrowingName {
+    bool should_throw = true;
+    // Keep the conversion opaque to MSVC's unreachable-code analysis.
+    DOCTEST_NOINLINE operator string_view() const {
+      if (should_throw) {
+        throw 42;
+      }
+      return "Yay";
+    }
+  };
+  static_assert(!noexcept(enum_cast<BoolTest>(ThrowingName{})));
+  static_assert(!noexcept(enum_contains<BoolTest>(ThrowingName{})));
+  CHECK_THROWS_AS(static_cast<void>(enum_cast<BoolTest>(ThrowingName{})), int);
+  CHECK_THROWS_AS(static_cast<void>(enum_contains<BoolTest>(ThrowingName{})), int);
+  CHECK(enum_cast<BoolTest>(ThrowingName{false}) == BoolTest::Yay);
+  CHECK(enum_contains<BoolTest>(ThrowingName{false}));
+}
 
 TEST_CASE("enum_cast") {
   SUBCASE("string") {
@@ -760,6 +839,24 @@ TEST_CASE("enum_count") {
 #endif
 }
 
+TEST_CASE("enum_min_max") {
+  constexpr auto color_min = enum_min<Color&>();
+  constexpr auto color_max = enum_max<const Color>();
+  REQUIRE(color_min == Color::RED);
+  REQUIRE(color_max == Color::BLUE);
+
+  REQUIRE(enum_min<Directions>() == Directions::Left);
+  REQUIRE(enum_max<Directions>() == Directions::Right);
+  REQUIRE(enum_min<number>() == number::one);
+#if defined(MAGIC_ENUM_TEST_STD_REFLECTION)
+  REQUIRE(enum_max<number>() == number::four);
+#else
+  REQUIRE(enum_max<number>() == number::three);
+#endif
+  REQUIRE(enum_min<Binary>() == Binary::ONE);
+  REQUIRE(enum_max<Binary>() == Binary::TWO);
+}
+
 enum lt1 { s1, loooooooooooooooooooong1 };
 enum lt2 : unsigned { s2, loooooooooooooooooooong2 };
 enum class lt3 { s3, loooooooooooooooooooong3 };
@@ -1100,6 +1197,42 @@ TEST_CASE("string_view lifetime and null termination") {
 }
 
 TEST_CASE("ostream_operators") {
+  SUBCASE("character underlying types") {
+    enum class Byte : unsigned char { Named = 1 };
+    enum class SignedByte : signed char { Named = 1 };
+    enum class Character : char { Named = 1 };
+    enum class WideCharacter : wchar_t { Named = 1 };
+    enum class Character16 : char16_t { Named = 1 };
+    enum class Character32 : char32_t { Named = 1 };
+
+    require_ostream(Byte::Named, "Named");
+    require_ostream(static_cast<Byte>(255), "255");
+    require_ostream(static_cast<SignedByte>(-1), "-1");
+    require_ostream(static_cast<Character>(65), "65");
+    require_ostream(static_cast<WideCharacter>(65), "65");
+    require_ostream(Character16::Named, "Named");
+    require_ostream(static_cast<Character16>(65), "65");
+    require_ostream(static_cast<Character32>(65), "65");
+    require_ostream(std::make_optional(static_cast<Byte>(255)), "255");
+    require_ostream(static_cast<WideCharacter>(65), L"65");
+#if defined(__cpp_char8_t)
+    enum class Character8 : char8_t { Named = 1 };
+    require_ostream(static_cast<Character8>(65), "65");
+#endif
+  }
+
+  SUBCASE("short underlying type formatting") {
+    using namespace magic_enum::ostream_operators;
+    enum class Small : short { Named = 1 };
+
+    for (const auto format : {std::dec, std::hex, std::oct}) {
+      std::ostringstream actual, expected;
+      actual << format << static_cast<Small>(-1);
+      expected << format << short{-1};
+      REQUIRE(actual.str() == expected.str());
+    }
+  }
+
   require_ostream(std::make_optional(Color::RED), "red");
   require_ostream(Color::GREEN, "GREEN");
   require_ostream(Color::BLUE, "BLUE");
@@ -1149,6 +1282,20 @@ TEST_CASE("istream_operators") {
 
   require_istream(number::two, "two");
   require_istream(number::three, "three");
+}
+
+TEST_CASE("istream_operators invalid input with custom traits") {
+  using namespace magic_enum::istream_operators;
+  using String = std::basic_string<char, CustomCharTraits<char>>;
+  constexpr char embedded_null[] = "GREEN\0UNKNOWN";
+
+  for (const auto& input : {String{"UNKNOWN"}, String{embedded_null, sizeof(embedded_null) - 1}}) {
+    std::basic_istringstream<char, CustomCharTraits<char>> stream{input};
+    auto value = Color::BLUE;
+    stream >> value;
+    REQUIRE((stream.rdstate() & std::ios::failbit) != 0);
+    REQUIRE(value == Color::BLUE);
+  }
 }
 
 TEST_CASE("bitwise_operators") {
@@ -1760,7 +1907,24 @@ struct RvalueOnlyForEach {
   }
 };
 
+struct ForEachCommaResult {
+  ForEachCommaResult operator,(ForEachCommaResult) const = delete;
+};
+
 TEST_CASE("enum_for_each") {
+  SUBCASE("discarded results with overloaded comma") {
+    std::array<Color, 3> visited{};
+    std::size_t calls = 0;
+    enum_for_each<Color>([&](auto value) {
+      visited[calls++] = value;
+      if constexpr (value != Color::RED) {
+        return ForEachCommaResult{};
+      }
+    });
+    REQUIRE(calls == visited.size());
+    REQUIRE(visited == enum_values<Color>());
+  }
+
   SUBCASE("rvalue argument") {
     constexpr auto values = enum_for_each<Color>(RvalueOnlySwitchArgument{});
     static_assert(values[0] == 7 && values[1] == 7 && values[2] == 7);

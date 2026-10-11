@@ -3,8 +3,6 @@
 // Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 // Copyright (c) 2022 - 2023 Bela Schaum <schaumb@gmail.com>.
 
-#include <new>
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
 #include <magic_enum/magic_enum.hpp>
@@ -18,12 +16,17 @@
 
 #include <magic_enum/magic_enum_iostream.hpp>
 
+#include <algorithm>
 #include <functional>
+#include <iostream>
 #include <iterator>
 #include <limits>
+#include <set>
+#include <sstream>
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 enum class Color { RED = 1, GREEN = 2, BLUE = 4 };
 template <>
@@ -32,6 +35,12 @@ struct magic_enum::customize::enum_range<Color> {
 };
 
 enum class Empty {};
+
+enum class ReverseOrder { First, Second, Third };
+
+constexpr bool operator<(ReverseOrder lhs, ReverseOrder rhs) noexcept {
+  return static_cast<int>(lhs) > static_cast<int>(rhs);
+}
 
 // Enums used by containers_bitset_iterator tests.
 enum class Numbers { ONE, TWO, THREE, FOUR };           // 4 values, uint8_t base_type, not_interested=4
@@ -90,6 +99,23 @@ static_assert(!magic_enum::containers::detail::valid_indexing<Color, DuplicateIn
 static_assert(!magic_enum::containers::detail::valid_indexing<Empty, magic_enum::containers::default_indexing<Empty>>());
 static_assert(std::is_default_constructible_v<magic_enum::containers::array<Color, int, StaticIndex>>);
 static_assert(std::is_default_constructible_v<magic_enum::containers::bitset<Color, StaticIndex>>);
+
+template <auto I, typename T, typename = void>
+inline constexpr bool has_array_get = false;
+
+template <auto I, typename T>
+inline constexpr bool has_array_get<I, T, std::void_t<decltype(magic_enum::containers::get<I>(std::declval<T>()))>> = true;
+
+using ColorArray = magic_enum::containers::array<Color, int>;
+static_assert(!has_array_get<-1LL, ColorArray&>);
+static_assert(!has_array_get<-1LL, const ColorArray&>);
+static_assert(!has_array_get<-1LL, ColorArray&&>);
+static_assert(!has_array_get<-1LL, const ColorArray&&>);
+static_assert(!has_array_get<3, ColorArray&>);
+static_assert(has_array_get<0LL, ColorArray&>);
+static_assert(has_array_get<2ULL, const ColorArray&>);
+static_assert(has_array_get<Color::RED, ColorArray&>);
+
 struct NoexceptSwapThrowingMove {
   NoexceptSwapThrowingMove() = default;
   NoexceptSwapThrowingMove(const NoexceptSwapThrowingMove&) = delete;
@@ -117,6 +143,13 @@ struct ThrowingLess {
 enum class ThrowingEnum { A, B };
 
 bool operator<(ThrowingEnum, ThrowingEnum) { throw 0; }
+
+struct UnderlyingLess {
+  template <typename E>
+  constexpr bool operator()(E lhs, E rhs) const noexcept {
+    return magic_enum::enum_underlying(lhs) < magic_enum::enum_underlying(rhs);
+  }
+};
 
 enum class EquivalentNames { A, a };
 
@@ -150,7 +183,7 @@ struct ThrowingConversion {
 
 using ColorBitset = magic_enum::containers::bitset<Color>;
 using ColorSet = magic_enum::containers::set<Color>;
-using ThrowingSet = magic_enum::containers::set<ThrowingEnum>;
+using ThrowingSet = magic_enum::containers::set<ThrowingEnum, UnderlyingLess>;
 static_assert(std::is_same_v<typename std::iterator_traits<ColorBitset::iterator>::value_type, Color>);
 static_assert(std::is_same_v<typename std::iterator_traits<ColorSet::iterator>::value_type, Color>);
 static_assert(!noexcept(std::declval<ColorSet&>().insert(static_cast<const Color*>(nullptr), static_cast<const Color*>(nullptr))));
@@ -459,6 +492,41 @@ TEST_CASE("containers_bitset") {
   REQUIRE_THROWS(custom_index_bitset.reset(static_cast<Color>(8)));
 }
 
+TEST_CASE("containers_bitset_ostream_field_width") {
+  using Bitset = magic_enum::containers::bitset<Color>;
+  const Bitset bits{Color::RED, Color::BLUE};
+
+  for (const bool left : {false, true}) {
+    std::ostringstream stream;
+    stream.setf(left ? std::ios::left : std::ios::right, std::ios::adjustfield);
+    stream.fill('_');
+    stream.width(12);
+    REQUIRE(&(stream << bits) == &stream);
+    REQUIRE(stream.width() == 0);
+    stream << '!';
+    REQUIRE(stream.str() == (left ? "RED|BLUE____!" : "____RED|BLUE!"));
+  }
+
+  std::ostringstream short_width;
+  short_width.width(3);
+  short_width << bits << '!';
+  REQUIRE(short_width.str() == "RED|BLUE!");
+
+  std::ostringstream empty;
+  empty.fill('_');
+  empty.width(3);
+  empty << Bitset{} << '!';
+  REQUIRE(empty.str() == "___!");
+
+  struct CustomTraits : std::char_traits<char> {};
+  std::basic_ostringstream<char, CustomTraits> custom;
+  custom.fill('_');
+  custom.width(6);
+  custom << Bitset{Color::RED} << '!';
+  const auto result = custom.str();
+  REQUIRE(std::string(result.data(), result.size()) == "___RED!");
+}
+
 TEST_CASE("containers_bitset_hash") {
   using namespace magic_enum::bitwise_operators;
   using magic_enum::containers::bitset;
@@ -540,6 +608,64 @@ TEST_CASE("containers_bitset_all_full_storage") {
     const auto flipped = ~bs;
     return flipped.all() && bs.none() && bs.set().all() && bs.flip().none();
   }());
+}
+
+TEST_CASE("containers_set overloaded ordering") {
+  using namespace magic_enum::containers;
+  constexpr set<ReverseOrder> all{ReverseOrder::First, ReverseOrder::Second, ReverseOrder::Third};
+  static_assert(*all.begin() == ReverseOrder::Third);
+  static_assert(*all.lower_bound(ReverseOrder::Second) == ReverseOrder::Second);
+  static_assert(*all.upper_bound(ReverseOrder::Second) == ReverseOrder::First);
+
+  const auto check = [](auto actual, unsigned mask) {
+    std::set<ReverseOrder> expected;
+    for (unsigned i = 0; i < 3; ++i) {
+      if (mask & (1U << i)) {
+        actual.insert(static_cast<ReverseOrder>(i));
+        expected.insert(static_cast<ReverseOrder>(i));
+      }
+    }
+    REQUIRE(std::equal(actual.begin(), actual.end(), expected.begin(), expected.end()));
+    REQUIRE(std::equal(actual.rbegin(), actual.rend(), expected.rbegin(), expected.rend()));
+    for (int i = -1; i <= 3; ++i) {
+      const auto key = static_cast<ReverseOrder>(i);
+      const auto [first, last] = actual.equal_range(key);
+      const auto [expected_first, expected_last] = expected.equal_range(key);
+      REQUIRE(std::distance(actual.begin(), first) == std::distance(expected.begin(), expected_first));
+      REQUIRE(std::distance(actual.begin(), last) == std::distance(expected.begin(), expected_last));
+      REQUIRE((actual.find(key) != actual.end()) == (expected.find(key) != expected.end()));
+    }
+    for (const auto key : magic_enum::enum_values<ReverseOrder>()) {
+      REQUIRE(actual.erase(key) == expected.erase(key));
+      REQUIRE(actual.size() == expected.size());
+    }
+  };
+  for (unsigned mask = 0; mask < 8; ++mask) {
+    check(set<ReverseOrder>{}, mask);
+    check(set<ReverseOrder, std::less<>>{}, mask);
+  }
+}
+
+TEST_CASE("container indexing preserves the requested order") {
+  using namespace magic_enum::containers;
+  constexpr array<ReverseOrder, int> natural{{10, 20, 30}};
+  static_assert(natural[ReverseOrder::First] == 10);
+  static_assert(natural[ReverseOrder::Third] == 30);
+  constexpr bitset<ReverseOrder> bits{ReverseOrder::First, ReverseOrder::Third};
+  REQUIRE(*bits.begin() == ReverseOrder::First);
+  static_assert(bits.to_ullong(raw_access) == 5);
+
+  using SortedIndex = comparator_indexing<std::less<>>;
+  constexpr array<ReverseOrder, int, SortedIndex> sorted{{10, 20, 30}};
+  static_assert(sorted[ReverseOrder::First] == 30);
+  static_assert(sorted[ReverseOrder::Third] == 10);
+  REQUIRE(default_indexing<>::at(ReverseOrder::First) == 0);
+  REQUIRE(SortedIndex::at(ReverseOrder::First) == 2);
+
+  constexpr array<ThrowingEnum, int> throwing{{10, 20}};
+  static_assert(throwing[ThrowingEnum::A] == 10);
+  constexpr bitset<ThrowingEnum> throwing_bits{ThrowingEnum::A};
+  REQUIRE(*throwing_bits.begin() == ThrowingEnum::A);
 }
 
 TEST_CASE("containers_set") {
@@ -710,7 +836,58 @@ TEST_CASE("map_like_container") {
   }
 }
 
+TEST_CASE("containers_set_reverse_iterator") {
+  using Set = magic_enum::containers::set<Color>;
+  const Set empty;
+  REQUIRE(empty.rbegin() == empty.rend());
+  REQUIRE(empty.crbegin() == empty.crend());
+
+  const Set sparse{Color::RED, Color::BLUE};
+  auto it = sparse.rbegin();
+  REQUIRE(*it == Color::BLUE);
+  REQUIRE(*it++ == Color::BLUE);
+  REQUIRE(*it == Color::RED);
+  REQUIRE(++it == sparse.rend());
+  REQUIRE(*--it == Color::RED);
+  REQUIRE(*--it == Color::BLUE);
+  REQUIRE(it == sparse.crbegin());
+  REQUIRE(std::distance(sparse.crbegin(), sparse.crend()) == 2);
+
+  const Set singleton{Color::GREEN};
+  REQUIRE(*singleton.rbegin() == Color::GREEN);
+  REQUIRE(std::next(singleton.crbegin()) == singleton.crend());
+
+  const magic_enum::containers::set<Color, magic_enum::containers::name_less<>> by_name{Color::RED, Color::BLUE};
+  REQUIRE(*by_name.rbegin() == Color::RED);
+  REQUIRE(*std::next(by_name.rbegin()) == Color::BLUE);
+  REQUIRE(std::distance(by_name.rbegin(), by_name.rend()) == 2);
+}
+
+template <typename E>
+constexpr bool bitset_reverse_constexpr() {
+  magic_enum::containers::bitset<E> bits;
+  constexpr auto values = magic_enum::enum_values<E>();
+  bits.set(values.front());
+  bits.set(values.back());
+  auto it = bits.end();
+  if (*--it != values.back() || *--it != values.front()) {
+    return false;
+  }
+  const auto& const_bits = bits;
+  auto cit = const_bits.end();
+  return *--cit == values.back() && *--cit == values.front() && ++it == ++cit && ++it == bits.end();
+}
+
+#if !defined(_MSC_VER) || defined(__clang__) || (defined(__cpp_lib_bitops) && __cpp_lib_bitops >= 201907L)
+static_assert(bitset_reverse_constexpr<Numbers>());
+static_assert(bitset_reverse_constexpr<Nibble>());
+static_assert(bitset_reverse_constexpr<Bits65>());
+#endif
+
 TEST_CASE("containers_bitset_iterator") {
+  REQUIRE(bitset_reverse_constexpr<Numbers>());
+  REQUIRE(bitset_reverse_constexpr<Nibble>());
+  REQUIRE(bitset_reverse_constexpr<Bits65>());
   using namespace magic_enum::bitwise_operators;
 
   SUBCASE("empty - begin equals end") {

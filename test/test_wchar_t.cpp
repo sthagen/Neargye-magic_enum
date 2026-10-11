@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 
-#include <new>
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
+
+#include <string>
+#include <string_view>
 
 #define MAGIC_ENUM_USING_ALIAS_STRING_VIEW using string_view = std::wstring_view;
 #define MAGIC_ENUM_USING_ALIAS_STRING      using string      = std::wstring;
@@ -17,7 +18,6 @@
 #include <array>
 #include <cctype>
 #include <sstream>
-#include <string_view>
 
 enum class Color { RED = -12, GREEN = 7, BLUE = 15 };
 template <>
@@ -34,6 +34,19 @@ using namespace magic_enum;
 using namespace magic_enum_tests;
 
 static_assert(is_magic_enum_supported, "magic_enum: Unsupported compiler (https://github.com/Neargye/magic_enum#compiler-compatibility).");
+
+TEST_CASE("bool enum wide string lookup") {
+  enum class Binary : bool { FALSE_VALUE = false, TRUE_VALUE = true };
+  static_assert(enum_cast<Binary>(L"FALSE_VALUE") == Binary::FALSE_VALUE);
+  static_assert(enum_cast<Binary>(L"TRUE_VALUE") == Binary::TRUE_VALUE);
+  static_assert(!enum_cast<Binary>(L"INVALID").has_value());
+  static_assert(!enum_cast<Binary>(L"").has_value());
+  static_assert(!enum_contains<Binary>(L"INVALID"));
+  static_assert(enum_cast<Binary>(L"false_value", case_insensitive) == Binary::FALSE_VALUE);
+  const wchar_t* name = L"FALSE_VALUE";
+  CHECK(enum_cast<Binary>(name) == Binary::FALSE_VALUE);
+  CHECK(enum_cast<Binary>(std::wstring{name}) == Binary::FALSE_VALUE);
+}
 
 TEST_CASE("enum_cast") {
   SUBCASE("string") {
@@ -159,4 +172,25 @@ TEST_CASE("containers_bitset_iostream") {
   input >> bits;
   const magic_enum::containers::bitset<Color> expected {Color::GREEN};
   REQUIRE(bits == expected);
+}
+
+TEST_CASE("containers_bitset_ostream_field_width") {
+  const magic_enum::containers::bitset<Color> bits{Color::RED, Color::BLUE};
+  for (const bool left : {false, true}) {
+    std::wostringstream stream;
+    stream.setf(left ? std::ios::left : std::ios::right, std::ios::adjustfield);
+    stream.fill(L'_');
+    stream.width(12);
+    stream << bits;
+    REQUIRE(stream.width() == 0);
+    stream << L'!';
+    REQUIRE(stream.str() == (left ? L"red|BLUE____!" : L"____red|BLUE!"));
+  }
+
+  std::basic_ostringstream<wchar_t, CustomCharTraits<wchar_t>> custom;
+  custom.fill(L'_');
+  custom.width(12);
+  custom << bits << L'!';
+  const auto result = custom.str();
+  REQUIRE(std::wstring(result.data(), result.size()) == L"____red|BLUE!");
 }

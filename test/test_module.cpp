@@ -25,6 +25,26 @@ enum class Color { RED, GREEN, BLUE };
 enum class Directions { LEFT = 1, RIGHT = 2 };
 enum class ReflectionRange { Low = -1000, High = 1000 };
 
+enum class BoolValue : bool { FALSE_VALUE = false, TRUE_VALUE = true };
+static_assert(magic_enum::enum_cast<BoolValue>("FALSE_VALUE").value() == BoolValue::FALSE_VALUE);
+static_assert(magic_enum::enum_cast<BoolValue>("TRUE_VALUE").value() == BoolValue::TRUE_VALUE);
+static_assert(!magic_enum::enum_cast<BoolValue>("INVALID").has_value());
+static_assert(!magic_enum::enum_cast<BoolValue>("").has_value());
+static_assert(!magic_enum::enum_contains<BoolValue>("INVALID"));
+static_assert(magic_enum::enum_cast<BoolValue>(false).value() == BoolValue::FALSE_VALUE);
+static_assert(magic_enum::enum_cast<BoolValue>(true).value() == BoolValue::TRUE_VALUE);
+
+enum class ReverseOrder { Low, High };
+
+constexpr bool operator<(ReverseOrder lhs, ReverseOrder rhs) noexcept {
+  return static_cast<int>(lhs) > static_cast<int>(rhs);
+}
+
+constexpr magic_enum::containers::set<ReverseOrder> reverse_set{ReverseOrder::Low, ReverseOrder::High};
+static_assert(*reverse_set.begin() == ReverseOrder::High);
+static_assert(*reverse_set.lower_bound(ReverseOrder::Low) == ReverseOrder::Low);
+static_assert(*magic_enum::containers::default_indexing<ReverseOrder>::at(ReverseOrder::Low) == 0);
+
 template <>
 struct magic_enum::customize::enum_range<Directions> {
   static constexpr bool is_flags = true;
@@ -40,6 +60,10 @@ static_assert(!magic_enum::is_flags_enum<Color>::value);
 static_assert(!magic_enum::is_flags_v<Color>);
 static_assert(magic_enum::is_flags_enum<Directions>::value);
 static_assert(magic_enum::is_flags_v<Directions>);
+static_assert(magic_enum::enum_min<Color&>() == Color::RED);
+static_assert(magic_enum::enum_max<const Color>() == Color::BLUE);
+static_assert(magic_enum::enum_min<Directions>() == Directions::LEFT);
+static_assert(magic_enum::enum_max<Directions, magic_enum::as_flags<>>() == Directions::RIGHT);
 static_assert(magic_enum::enum_reflected<Directions>(Directions::RIGHT));
 static_assert(!magic_enum::enum_reflected<Directions>(static_cast<Directions>(3)));
 static_assert(magic_enum::enum_cast<Color>("GREEN").value() == Color::GREEN);
@@ -80,6 +104,8 @@ using magic_enum::enum_for_each;
 using magic_enum::enum_fuse;
 using magic_enum::enum_index;
 using magic_enum::enum_integer;
+using magic_enum::enum_min;
+using magic_enum::enum_max;
 using magic_enum::enum_name;
 using magic_enum::enum_names;
 using magic_enum::enum_next_value;

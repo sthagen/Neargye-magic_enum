@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 
-#include <new>
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
 #include <magic_enum/magic_enum.hpp>
@@ -145,6 +143,26 @@ TEST_CASE("enum_reflected") {
   REQUIRE_FALSE(enum_reflected<Directions, as_common<>>(Directions::Left));
 #endif
   REQUIRE_FALSE(enum_contains<Directions>(std::uint64_t{1} << 62));
+}
+
+TEST_CASE("bool flag text lookup does not convert pointers to true") {
+  static_assert(enum_cast<BoolFlags>("Enabled") == BoolFlags::Enabled);
+  static_assert(!enum_cast<BoolFlags>("Disabled").has_value());
+  static_assert(!enum_cast<BoolFlags>("INVALID").has_value());
+  static_assert(!enum_cast<BoolFlags>("").has_value());
+  static_assert(enum_cast<BoolFlags, as_common<>>("Disabled") == BoolFlags::Disabled);
+  static_assert(!enum_contains<BoolFlags>("Disabled"));
+  static_assert(!enum_contains<BoolFlags>("INVALID"));
+  static_assert(enum_flags_cast<BoolFlags>("Enabled") == BoolFlags::Enabled);
+  static_assert(!enum_flags_cast<BoolFlags>("Disabled").has_value());
+  static_assert(!enum_flags_cast<BoolFlags>("INVALID").has_value());
+  static_assert(!enum_flags_cast<BoolFlags>("").has_value());
+  static_assert(!enum_flags_contains<BoolFlags>("INVALID"));
+  static_assert(!enum_flags_contains<BoolFlags>(""));
+  const char* invalid = "INVALID";
+  CHECK_FALSE(enum_flags_cast<BoolFlags>(invalid).has_value());
+  CHECK_FALSE(enum_flags_contains<BoolFlags>(invalid));
+  CHECK(enum_flags_cast<BoolFlags>("enabled", '|', case_insensitive) == BoolFlags::Enabled);
 }
 
 TEST_CASE("bool flags use the sole non-zero bit") {
@@ -536,6 +554,22 @@ TEST_CASE("enum_count") {
   REQUIRE(s4 == 4);
 }
 
+TEST_CASE("enum_min_max") {
+  constexpr auto color_min = enum_min<Color&>();
+  constexpr auto color_max = enum_max<const Color, as_flags<>>();
+  REQUIRE(color_min == Color::RED);
+  REQUIRE(color_max == Color::BLUE);
+
+  REQUIRE(enum_min<Directions>() == Directions::Left);
+  REQUIRE(enum_max<Directions>() == Directions::Right);
+  REQUIRE(enum_min<number>() == number::one);
+  REQUIRE(enum_max<number>() == number::four);
+  REQUIRE(enum_min<number, as_common<>>() == number::no_number);
+  REQUIRE(enum_max<number, as_common<>>() == number::four);
+  REQUIRE(enum_min<BoolFlags>() == BoolFlags::Enabled);
+  REQUIRE(enum_max<BoolFlags>() == BoolFlags::Enabled);
+}
+
 TEST_CASE("enum_name") {
   SUBCASE("automatic storage") {
     constexpr Color cr = Color::RED;
@@ -723,6 +757,13 @@ TEST_CASE("flags string lifetime and null termination") {
 }
 
 TEST_CASE("ostream_operators") {
+  SUBCASE("boolalpha fallback") {
+    using namespace magic_enum::ostream_operators;
+    std::ostringstream stream;
+    stream << std::boolalpha << BoolFlags::Disabled;
+    REQUIRE(stream.str() == "false");
+  }
+
   require_ostream(std::make_optional(Color::RED), "RED");
   require_ostream(Color::GREEN, "GREEN");
   require_ostream(Color::BLUE, "BLUE");
@@ -775,6 +816,20 @@ TEST_CASE("istream_operators") {
   require_istream(number::three, "three");
   require_istream(number::four, "four");
   require_istream(number::four | number::one, "one|four");
+}
+
+TEST_CASE("istream_operators invalid input with custom traits") {
+  using namespace magic_enum::istream_operators;
+  using String = std::basic_string<char, CustomCharTraits<char>>;
+  constexpr char embedded_null[] = "RED\0|BLUE";
+
+  for (const auto& input : {String{"UNKNOWN"}, String{"RED|UNKNOWN"}, String{embedded_null, sizeof(embedded_null) - 1}}) {
+    std::basic_istringstream<char, CustomCharTraits<char>> stream{input};
+    auto value = Color::BLUE;
+    stream >> value;
+    REQUIRE((stream.rdstate() & std::ios::failbit) != 0);
+    REQUIRE(value == Color::BLUE);
+  }
 }
 
 TEST_CASE("bitwise_operators") {

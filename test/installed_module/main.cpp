@@ -24,6 +24,15 @@ enum class Color { RED, GREEN, BLUE };
 enum class Directions { LEFT = 1, RIGHT = 2 };
 enum class ReflectionRange { Low = -1000, High = 1000 };
 
+enum class BoolValue : bool { FALSE_VALUE = false, TRUE_VALUE = true };
+static_assert(magic_enum::enum_cast<BoolValue>("FALSE_VALUE").value() == BoolValue::FALSE_VALUE);
+static_assert(magic_enum::enum_cast<BoolValue>("TRUE_VALUE").value() == BoolValue::TRUE_VALUE);
+static_assert(!magic_enum::enum_cast<BoolValue>("INVALID").has_value());
+static_assert(!magic_enum::enum_cast<BoolValue>("").has_value());
+static_assert(!magic_enum::enum_contains<BoolValue>("INVALID"));
+static_assert(magic_enum::enum_cast<BoolValue>(false).value() == BoolValue::FALSE_VALUE);
+static_assert(magic_enum::enum_cast<BoolValue>(true).value() == BoolValue::TRUE_VALUE);
+
 template <>
 struct magic_enum::customize::enum_range<Directions> {
   static constexpr bool is_flags = true;
@@ -36,6 +45,8 @@ struct magic_enum::customize::enum_range<ReflectionRange> {
 };
 
 static_assert(magic_enum::enum_count<Color>() == 3);
+static_assert(magic_enum::enum_min<Color>() == Color::RED);
+static_assert(magic_enum::enum_max<Color>() == Color::BLUE);
 static_assert(magic_enum::enum_integer(Color::GREEN) == 1);
 static_assert(magic_enum::string_view{"BLUE"}.size() == 4);
 static_assert(magic_enum::optional<int>{7}.value() == 7);

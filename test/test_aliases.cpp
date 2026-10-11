@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2019 - 2026 Daniil Goncharov <neargye@gmail.com>.
 
-#include <new>
-#define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include <doctest/doctest.h>
 
 #include "aliases.hpp"
@@ -23,6 +21,41 @@ template <>
 struct magic_enum::customize::enum_range<Color> {
   static constexpr bool is_flags = true;
 };
+
+TEST_CASE("bool enum lookup with custom string_view and optional") {
+  enum class Binary : bool { FALSE_VALUE = false, TRUE_VALUE = true };
+  static_assert(enum_cast<Binary>("FALSE_VALUE").value() == Binary::FALSE_VALUE);
+  static_assert(enum_cast<Binary>("TRUE_VALUE").value() == Binary::TRUE_VALUE);
+  static_assert(!enum_cast<Binary>("INVALID").has_value());
+  static_assert(!enum_cast<Binary>("").has_value());
+  static_assert(!enum_contains<Binary>("INVALID"));
+  const char* name = "FALSE_VALUE";
+  CHECK(enum_cast<Binary>(name).value() == Binary::FALSE_VALUE);
+  CHECK(enum_cast<Binary>(MyStringView{name}).value() == Binary::FALSE_VALUE);
+  CHECK(enum_contains<Binary>(name));
+}
+
+struct DirectNameInput {
+  operator MyStringView() const { throw 42; }
+};
+
+TEST_CASE("name lookup construction matches noexcept with custom string_view") {
+  DirectNameInput name;
+  static_assert(detail::is_name_input_v<DirectNameInput&>);
+  static_assert(std::is_nothrow_constructible_v<string_view, DirectNameInput&>);
+  static_assert(noexcept(enum_cast<Color>(name)));
+  static_assert(noexcept(enum_contains<Color>(name)));
+  static_assert(noexcept(enum_flags_cast<Color>(name)));
+  static_assert(noexcept(enum_flags_contains<Color>(name)));
+
+  CHECK(enum_cast<Color>(name).value() == Color::RED);
+  CHECK(enum_contains<Color>(name));
+  CHECK(enum_flags_cast<Color>(name).value() == Color::RED);
+  CHECK(enum_flags_contains<Color>(name));
+
+  const auto copy_initialize = [](string_view) noexcept {};
+  CHECK_THROWS_AS(copy_initialize(name), int);
+}
 
 TEST_CASE("optional") {
   constexpr auto cr = enum_cast<Color>("RED");
@@ -62,6 +95,14 @@ TEST_CASE("string_view") {
   auto cn = enum_name(Color{0});
   REQUIRE(cn.empty());
   REQUIRE(cn.size() == 0);
+}
+
+TEST_CASE("istream_operators") {
+  enum class Direction { Left, Right };
+
+  require_istream(Direction::Right, "Right");
+  require_istream(Color::GREEN, "GREEN");
+  require_istream(Color::RED | Color::BLUE, "RED|BLUE");
 }
 
 TEST_CASE("string_view lifetime and null termination") {
